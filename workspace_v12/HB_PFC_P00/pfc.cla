@@ -1,0 +1,824 @@
+//#############################################################################
+/*
+ * pfc.cla
+ *
+ *  Created on: Feb 26, 2023
+ *      Author: Anil Ravi
+ */
+//#############################################################################
+/**
+* @file pfc.cla
+* @brief space vector modulation functions body
+*
+* This module contains all the space vector modulation functions for
+*  PFC control algorithm
+*
+* @author Sarinx LLC
+*******************************************************************************/
+//
+//
+//-----------------------------------------------------------------------------|
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<< HEADER FILES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>|
+//-----------------------------------------------------------------------------|
+#include "cla_shared.h"
+
+//
+//-----------------------------------------------------------------------------|
+//<<<<<<<<<<<<<<<<<<<<<< PRE-PROCESSOR DIRECTIVES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>|
+//-----------------------------------------------------------------------------|
+//
+
+#define SIN60       8.66
+#define COS60       0.5
+#define SQRT2       1.41421
+#define SQRT3       1.73205
+#define ONEBYSQRT3  0.57735
+#define ONEBYSQRT2  0.70721
+#define SQRT3BY2    0.866602
+//
+// Globals
+//
+// Note that the globals defined in the .cla source are global to the cla source
+// file.  i.e. they may be shared across tasks. All of the data shared between
+// the CLA and the C28x CPU must be defined in the C (or C++) code, and not the
+// CLA code.
+//
+
+float BiasOut;
+float BiasIn;
+float AngleValue;
+short Segment;
+short Region;
+float WrDQZ;
+short SegmentID;
+short RegionID;
+
+
+VECTOR SpaceVectorDQZ;
+VECTOR SpaceVectorRXZ; //This is obtained from 10Kz rate algorithm
+VECTOR CounterRotatedRXZ;
+VECTOR TransitionThreshold;
+VECTOR SpaceVectorTransitionTime;
+VECTOR SpaceVector3Phase;
+
+/** Vector to store the three axis of the three phase current / voltage
+*   for control algorithm */
+
+typedef enum
+{
+    FAULT_S,
+    _0TO60,
+    _60TO120,
+    _120TO180,
+    _180TO240,
+    _240TO300,
+    _300TO360
+}SEGMENT_ID;
+
+typedef enum
+{
+    FAULT_R,
+    _30TO90,
+    _90TO150,
+    _150TO210,
+    _210TO270,
+    _270TO330,
+    _330TO360
+}REGION_ID;
+
+
+typedef enum
+{
+    DEFAULT,
+    REGION_1A,
+    REGION_1B,
+    REGION_2A,
+    REGION_2B,
+    REGION_3A,
+    REGION_3B,
+    REGION_4A,
+    REGION_4B,
+    REGION_5A,
+    REGION_5B,
+    REGION_6A,
+    REGION_6B
+}REGION_INDEX;  //RegionIndex
+
+// zxcvb
+typedef enum
+{
+    ABCtoACB,
+    ABCtoBAC,
+    ABCtoABC,
+    ABCtoCBA,
+    ABCtoCAB,
+    ABCtoBCA
+}ROTATE_INDEX;
+
+
+//-----------------------------------------------------------------------------|
+//<<<<<<<<<<<<<<<<<<<< GLOBAL FUNCTION DEFINITIONS >>>>>>>>>>>>>>>>>>>>>>>>>>>>|
+//-----------------------------------------------------------------------------|
+
+void GenerateSpaceVectorRXZ();
+void DetectSegment();
+void DetectRegion();
+void CounterRotateSpaceVectorRXZ();
+void CalculateTransitions();
+void RotateSpaceVectorRXZ();
+void RotateRXZby30Degree();
+void ConvertRXZtoThreePhase();
+
+//Task 1 : logic tests
+// see http://graphics.stanford.edu/~seander/bithacks.html#OperationCounting
+__interrupt void Cla1Task1 ( void )
+{
+    GenerateSpaceVectorRXZ();
+    DetectSegment();
+    RotateRXZby30Degree();
+    DetectSegment();
+    DetectRegion();
+    CounterRotateSpaceVectorRXZ();
+    CalculateTransitions();
+    RotateSpaceVectorRXZ();
+}
+
+__interrupt void Cla1Task2 ( void )
+{
+
+}
+
+__interrupt void Cla1Task3 ( void )
+{
+
+}
+
+__interrupt void Cla1Task4 ( void )
+{
+
+}
+
+__interrupt void Cla1Task5 ( void )
+{
+
+}
+
+__interrupt void Cla1Task6 ( void )
+{
+
+}
+
+__interrupt void Cla1Task7 ( void )
+{
+
+}
+
+__interrupt void Cla1Task8 ( void )
+{
+
+}
+
+//CLA local functions
+//
+
+/*******************************************************************************
+*//**
+* @brief Counter Rotation of Spacevector RXZ
+* @param SpaceVectorRXZ     - Three phase input
+* @param Segment            - space vector segment
+* @retun CounterRotatedRXZ  - Space Vector RXZ with counter rotation
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void CounterRotateSpaceVectorRXZ()
+{
+
+    switch (Segment)
+    {
+        case FAULT_S:
+            {
+                CounterRotatedRXZ.Axis1 = 0;
+                CounterRotatedRXZ.Axis2 = 0;
+                CounterRotatedRXZ.Axis3 = 0;
+
+                //BiasOut = 0;
+                break;
+            }
+
+        case _0TO60:
+            {
+                CounterRotatedRXZ.Axis1 = ((     0 * SpaceVectorRXZ.Axis1) + ( 2 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis2 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis3 = (( SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                //BiasOut = BiasIn;
+                break;
+            }
+
+        case _60TO120:
+            {
+                CounterRotatedRXZ.Axis1 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis2 = ((     0 * SpaceVectorRXZ.Axis1) + (-2 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis3 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                //BiasOut = BiasIn;
+                break;
+            }
+
+        case _120TO180:
+            {
+                CounterRotatedRXZ.Axis1 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis2 = (( SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis3 = ((     0 * SpaceVectorRXZ.Axis1) + ( 2 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                //BiasOut = BiasIn;
+                break;
+            }
+
+        case _180TO240:
+            {
+                CounterRotatedRXZ.Axis1 = ((     0 * SpaceVectorRXZ.Axis1) + (-2 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis2 = (( SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis3 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                //BiasOut = BiasIn;
+                break;
+            }
+
+        case _240TO300:
+            {
+                CounterRotatedRXZ.Axis1 = (( SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis2 = ((     0 * SpaceVectorRXZ.Axis1) + ( 2 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis3 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                //BiasOut = BiasIn;
+                break;
+            }
+
+        case _300TO360:
+            {
+                CounterRotatedRXZ.Axis1 = (( SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis2 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis3 = ((     0 * SpaceVectorRXZ.Axis1) + (-2 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                //BiasOut = BiasIn;
+                break;
+            }
+    }
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Calculates space vector transitions
+* @param CounterRotatedRXZ      - Counter rotated space vector RXZ
+* @param BiasIn                 - Bias
+* @param SegmentID              - space vector segment ID
+* @param RegionID               - space vector region ID
+* @retun TransitionThreshold    - Space Vector transition threshold
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void CalculateTransitions()
+{
+    VECTOR TransitionVector;
+    float TransitionBias;
+    short region_index;
+
+    short TransitionLookUpTable [7][7] = {{0,0,0,0,0,0,0},
+                                        {0,1,2,5,8,9,12},
+                                        {0,3,4,7,6,11,10},
+                                        {0,1,2,5,8,9,12},
+                                        {0,3,4,7,6,11,10},
+                                        {0,1,2,5,8,9,12},
+                                        {0,3,4,7,6,11,10}
+                                       };
+
+    region_index = TransitionLookUpTable[SegmentID][RegionID];
+
+    switch (region_index)
+    {
+
+        case REGION_1A:
+            {
+                TransitionVector.Axis1 = (((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+                TransitionVector.Axis2 = (((     2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+                TransitionVector.Axis3 = (((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+
+                break;
+            }
+        case REGION_1B:
+            {
+                TransitionVector.Axis1 = (((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+                TransitionVector.Axis2 = (((    -2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+                TransitionVector.Axis3 = (((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+
+                break;
+            }
+
+        case REGION_2A:
+            {
+                TransitionVector.Axis1 = (((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+                TransitionVector.Axis2 = (((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+                TransitionVector.Axis3 = (((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+
+                break;
+            }
+
+        case REGION_2B:
+            {
+                TransitionVector.Axis1 = (((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+                TransitionVector.Axis2 = (((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+                TransitionVector.Axis3 = (((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+
+                break;
+            }
+        case REGION_3A:
+            {
+                TransitionVector.Axis1 = (((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+                TransitionVector.Axis2 = (((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1.5;
+                TransitionVector.Axis3 = (((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+
+                break;
+            }
+
+        case REGION_3B:
+            {
+                TransitionVector.Axis1 = (((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+                TransitionVector.Axis2 = (((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) - 0.5;
+                TransitionVector.Axis3 = (((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+
+                break;
+            }
+
+       case REGION_4A:
+           {
+                TransitionVector.Axis1 = (((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+                TransitionVector.Axis2 = (((     2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) - 0.5;
+                TransitionVector.Axis3 = (((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+
+                break;
+           }
+
+       case REGION_4B:
+           {
+               TransitionVector.Axis1 = (((    0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+               TransitionVector.Axis2 = (((   -2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1.5;
+               TransitionVector.Axis3 = (((    0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0.5;
+
+               break;
+           }
+
+       case REGION_5A:
+           {
+               TransitionVector.Axis1 = (((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+               TransitionVector.Axis2 = (((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+               TransitionVector.Axis3 = (((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+
+               break;
+           }
+
+       case REGION_5B:
+           {
+               TransitionVector.Axis1 = (((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+               TransitionVector.Axis2 = (((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+               TransitionVector.Axis3 = (((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+
+               break;
+           }
+
+       case REGION_6A:
+           {
+               TransitionVector.Axis1 = (((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+               TransitionVector.Axis2 = (((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+               TransitionVector.Axis3 = (((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+
+               break;
+           }
+
+       case REGION_6B:
+           {
+               TransitionVector.Axis1 = (((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+               TransitionVector.Axis2 = (((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 0;
+               TransitionVector.Axis3 = (((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) * ONEBYSQRT3) + 1;
+
+               break;
+           }
+    }
+
+    TransitionBias = TransitionVector.Axis3 * BiasIn;
+    TransitionThreshold.Axis1 = TransitionVector.Axis1 + TransitionBias;
+    TransitionThreshold.Axis2 = TransitionVector.Axis2 + TransitionBias;
+    TransitionThreshold.Axis3 = TransitionVector.Axis3 + TransitionBias;
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Calculates space vector transition time
+* @param TransitionThreshold        - Space vecdtor transition threshold
+* @param SegmentID                  - space vector segment ID
+* @param RegionID                   - space vector region ID
+* @retun SpaceVectorTransitionTime  - Space Vector transition time which will be sent to PWM switches
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void RotateSpaceVectorRXZ()
+{
+
+    short RotationLookUpTableIndex;
+
+    short RotationLookUpTable [7][7] = {{0,0,0,0,0,0,0},
+                                      {0,1,2,6,3,5,4},
+                                      {0,2,3,1,4,6,5},
+                                      {0,3,4,2,5,1,6},
+                                      {0,4,5,3,6,2,1},
+                                      {0,5,6,4,1,3,2},
+                                      {0,6,1,5,2,4,3}
+                                     };
+
+    RotationLookUpTableIndex = RotationLookUpTable [SegmentID][RegionID];
+
+
+    switch (RotationLookUpTableIndex)
+    {
+
+        case ABCtoACB:
+        {
+            SpaceVectorTransitionTime.Axis1 = ((  1 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 1 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionThreshold.Axis1) + ( 1 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+
+            break;
+        }
+
+        case ABCtoABC:
+        {
+            SpaceVectorTransitionTime.Axis1 = ((  1 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionThreshold.Axis1) + ( 1 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 1 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+
+            break;
+        }
+
+        case ABCtoBAC:
+        {
+            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionThreshold.Axis1) + ( 1 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis2 = ((  1 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 1 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+
+            break;
+        }
+
+        case ABCtoCAB:
+        {
+            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 1 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis2 = ((  1 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionThreshold.Axis1) + ( 1 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+
+            break;
+        }
+
+        case ABCtoCBA:
+        {
+            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 1 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionThreshold.Axis1) + ( 1 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis3 = ((  1 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+
+            break;
+        }
+
+        case ABCtoBCA:
+        {
+            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionThreshold.Axis1) + ( 1 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 1 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+            SpaceVectorTransitionTime.Axis3 = ((  1 * TransitionThreshold.Axis1) + ( 0 * TransitionThreshold.Axis2) + ( 0 * TransitionThreshold.Axis3)) * ONEBYSQRT3;
+
+            break;
+        }
+   }
+
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Generate Space Vector RXZ from angle and Space Vector DQZ
+* @param WrDQZ                      - space vector angle (Omega)
+* @param SpaceVectorDQZ             - space vector in DQZ
+* @retun SpaceVectorRXZ             - Space Vector in RXZ
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void GenerateSpaceVectorRXZ()
+{
+
+    //float AnglePresentValue = 0; // This will ahve a value of 0 to 1, which will be 0 to 2PI
+    //float AngleTempValue;
+    float tpwm = 0.00001; // 10 microseconds i.e 1/100K, if we are running at 100 KHz
+    float SinWt = 0;
+    float CosWt =0;
+
+
+    // test purposes, delete following three lines later
+    SpaceVectorDQZ.Axis1 = 0.5;
+    SpaceVectorDQZ.Axis2 = 0;
+    SpaceVectorDQZ.Axis3 = 0;
+
+    AngleValue = (WrDQZ * tpwm) + AngleValue;
+
+    if (AngleValue > 1)
+    {
+        AngleValue = AngleValue - 1;
+    }
+    else if (AngleValue < 0)
+    {
+
+        AngleValue = AngleValue + 1;
+    }
+
+    //SinWt = CLAsin(AngleValue);
+    //CosWt = CLAcos(AngleValue);
+
+    //%RotationMatrixDQtoRXZ;
+
+    SpaceVectorRXZ.Axis1 = ( CosWt * SpaceVectorDQZ.Axis1) + (SinWt * SpaceVectorDQZ.Axis2) + (0 * SpaceVectorDQZ.Axis3);
+    SpaceVectorRXZ.Axis2 = (-SinWt * SpaceVectorDQZ.Axis1) + (CosWt * SpaceVectorDQZ.Axis2) + (0 * SpaceVectorDQZ.Axis3);
+    SpaceVectorRXZ.Axis3 = (     0 * SpaceVectorDQZ.Axis1) + (    0 * SpaceVectorDQZ.Axis2) + (1 * SpaceVectorDQZ.Axis3);
+
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Utility function to rotate a space vector by 30 degrees
+* @param SpaceVectorRXZ             - space vector in RXZ to be rotated by 30 deg
+* @retun SpaceVectorRXZ             - Space Vector with 30 deg rotation
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void RotateRXZby30Degree()
+{
+    SpaceVectorRXZ.Axis1 =  ( ( SQRT3BY2 * SpaceVectorRXZ.Axis1) + (    -0.5 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+    SpaceVectorRXZ.Axis2 =  ( (      0.5 * SpaceVectorRXZ.Axis1) + (SQRT3BY2 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+    SpaceVectorRXZ.Axis3 =  ( (        0 * SpaceVectorRXZ.Axis1) + (       0 * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Utility function to convert RXZ vector in to three phase vector
+* @param SpaceVectorRXZ             - space vector in RXZ to be converted in to three phases
+* @retun SpaceVector3Phase          - Space Vector in 3 phases
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void ConvertRXZtoThreePhase()
+{
+   SpaceVector3Phase.Axis1 =  ( (         1 * SpaceVectorRXZ.Axis1) + (     - 0.5 * SpaceVectorRXZ.Axis2) + (      - 0.5 * SpaceVectorRXZ.Axis3)) * 1.5;
+   SpaceVector3Phase.Axis2 =  ( (         0 * SpaceVectorRXZ.Axis1) + (  SQRT3BY2 * SpaceVectorRXZ.Axis2) + ( - SQRT3BY2 * SpaceVectorRXZ.Axis3)) * 1.5;
+   SpaceVector3Phase.Axis3 =  ( (ONEBYSQRT2 * SpaceVectorRXZ.Axis1) + (ONEBYSQRT2 * SpaceVectorRXZ.Axis2) + ( ONEBYSQRT2 * SpaceVectorRXZ.Axis3)) * 1.5;
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Detecs the space vector segment
+* @param SpaceVector3Phase  - Space Vector in 3 phases
+* @retun Segment            - Space Vector segment
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void DetectSegment()
+{
+    short Segment_t;
+
+    if ( SpaceVector3Phase.Axis1 >=  SpaceVector3Phase.Axis2)
+        {
+            Segment_t = 1;
+        }
+    if ( SpaceVector3Phase.Axis2 >=  SpaceVector3Phase.Axis3)
+        {
+            Segment_t = Segment_t + 2;
+        }
+    if ( SpaceVector3Phase.Axis3 >=  SpaceVector3Phase.Axis1)
+        {
+            Segment_t = Segment_t + 4;
+        }
+
+
+    switch (Segment_t)
+        {
+            case 1:
+            {
+                Segment = 4;
+                break;
+            }
+            case 2:
+            {
+                 Segment = 2;
+                 break;
+            }
+            case 3:
+            {
+                 Segment = 3;
+                 break;
+            }
+
+            case 4:
+             {
+                  Segment = 6;
+                  break;
+             }
+
+            case 5:
+             {
+                  Segment = 5;
+                  break;
+             }
+
+            case 6:
+             {
+                  Segment = 1;
+                  break;
+             }
+          }
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Detecs the space vector region
+* @param SpaceVectorRXZ     - Space Vector in RXZ
+* @param SegmentID          - Space Vector segment ID
+* @retun Region             - Space Vector region
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+//
+
+void DetectRegion()
+{
+    short Region_t;
+
+    switch (Segment)
+    {
+        case _0TO60: //0 deg rotation
+            {
+                SpaceVectorRXZ.Axis1 =  ( (1 * SpaceVectorRXZ.Axis1) + (0     * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis2 =  ( (0 * SpaceVectorRXZ.Axis1) + (1     * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis3 =  ( (0 * SpaceVectorRXZ.Axis1) + (0     * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+
+                break;
+            }
+
+        case _60TO120: //0 to -60 deg rotation
+            {
+                SpaceVectorRXZ.Axis1 =  ( (       0.5 * SpaceVectorRXZ.Axis1) + ( SQRT3BY2  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis2 =  ( ( -SQRT3BY2 * SpaceVectorRXZ.Axis1) + (      0.5  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis3 =  ( (         0 * SpaceVectorRXZ.Axis1) + (        0  * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+
+                break;
+            }
+        case _120TO180: //0 to -120 deg rotation
+            {
+                SpaceVectorRXZ.Axis1 =  ( (      -0.5 * SpaceVectorRXZ.Axis1) + ( SQRT3BY2  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis2 =  ( ( -SQRT3BY2 * SpaceVectorRXZ.Axis1) + (     -0.5  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis3 =  ( (         0 * SpaceVectorRXZ.Axis1) + (        0  * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+
+                break;
+            }
+
+        case _180TO240: //0 to -180 deg rotation
+            {
+                SpaceVectorRXZ.Axis1 =  ( (      -1 * SpaceVectorRXZ.Axis1) + (        0    * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis2 =  ( (       0 * SpaceVectorRXZ.Axis1) + (       -1    * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis3 =  ( (       0 * SpaceVectorRXZ.Axis1) + (        0    * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+
+                break;
+            }
+
+        case _240TO300: //0 to -240 deg rotation
+            {
+                SpaceVectorRXZ.Axis1 =  ( (     -0.5 * SpaceVectorRXZ.Axis1) + (  -SQRT3BY2 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis2 =  ( ( SQRT3BY2 * SpaceVectorRXZ.Axis1) + (       -0.5 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis3 =  ( (        0 * SpaceVectorRXZ.Axis1) + (          0 * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+
+                break;
+            }
+
+        case _300TO360: //0 to -300 deg rotation
+            {
+                SpaceVectorRXZ.Axis1 =  ( (      0.5 * SpaceVectorRXZ.Axis1) + (   -SQRT3BY2 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis2 =  ( ( SQRT3BY2 * SpaceVectorRXZ.Axis1) + (         0.5 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
+                SpaceVectorRXZ.Axis3 =  ( (        0 * SpaceVectorRXZ.Axis1) + (           0 * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
+
+                break;
+            }
+    }
+
+    // subtract [1/2,0,0] vector
+
+    SpaceVectorRXZ.Axis1 = SpaceVectorRXZ.Axis1 - 0.5;
+    SpaceVectorRXZ.Axis2 = SpaceVectorRXZ.Axis2 - 0;
+    SpaceVectorRXZ.Axis3 = SpaceVectorRXZ.Axis3 - 0;
+
+
+    //Convert RXZ to 3 Phase vector
+    ConvertRXZtoThreePhase();
+
+
+    if ( SpaceVector3Phase.Axis1 >=  SpaceVector3Phase.Axis2)
+        {
+            Region_t = 1;
+        }
+
+    if ( SpaceVector3Phase.Axis2 >=  SpaceVector3Phase.Axis3)
+        {
+            Region_t = Region_t + 2;
+        }
+    if ( SpaceVector3Phase.Axis3 >=  SpaceVector3Phase.Axis1)
+        {
+            Region_t = Region_t + 4;
+        }
+
+
+    switch (Region_t)
+    {
+        case 1:
+            {
+                Region = 2;
+                break;
+            }
+        case 2:
+            {
+                Region = 3;
+                break;
+            }
+        case 3:
+            {
+                Region = 1;
+                break;
+            }
+        case 4:
+            {
+                Region = 6;
+                break;
+            }
+
+        case 5:
+            {
+                Region = 4;
+                break;
+            }
+
+        case 6:
+            {
+                Region = 5;
+                break;
+            }
+    }
+}
+
+
+//
+// End of file
+//
