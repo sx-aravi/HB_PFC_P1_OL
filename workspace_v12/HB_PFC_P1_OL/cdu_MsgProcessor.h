@@ -15,8 +15,8 @@
 * Created on: May 26, 2023
 * @author Sarinx LLC
 *******************************************************************************/
-#ifndef CDU_MSGDATAPROCESSOR_H_
-#define CDU_MSGDATAPROCESSOR_H_
+#ifndef CDU_MSGPROCESSOR_H_
+#define CDU_MSGPROCESSOR_H_
 
 #include "driverlib.h"
 #include "device.h"
@@ -30,4 +30,4 @@ extern uint16_t EOM;
 
 void cdu_ProcessDiagnoticMsgs(void);
 
-#endif /* CDU_MSGDATAPROCESSOR_H_ */
+#endif /* CDU_MSGPROCESSOR_H_ */
