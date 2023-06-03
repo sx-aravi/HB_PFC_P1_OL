@@ -70,6 +70,7 @@ extern VECTOR SVMOutputTimes;
 void svm(void);
 void GenerateSpaceVectorRXZ();
 short DetectSegment(VECTOR);
+void DetectSegmentnSegmentID(VECTOR);
 void DetectRegion();
 void CounterRotateSpaceVectorRXZ();
 void CalculateTransitions();

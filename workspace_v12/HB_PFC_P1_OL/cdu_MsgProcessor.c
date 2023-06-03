@@ -1,3 +1,4 @@
+
 /******************************************************************************
 * Sarinx LLC Proprietary Data.
 * This document contains information, which is the property of Sarinx LLC
@@ -16,12 +17,14 @@
 * @author Sarinx LLC
 *******************************************************************************/
 
-#include "cdu_MsgDataProcessor.h"
+#include "cdu_MsgProcessor.h"
 #include "ddi_CAN.h"
 #include "cam_SVM.h"
+#include "pmu_ProfilerData.h"
 
 uint16_t FunctionCodes[256];
 uint16_t CanRxMsgData[8];
+uint16_t CanTxMsgData[8];
 
 uint16_t SOM = 0;
 uint16_t EOM = 0;
@@ -32,8 +35,21 @@ void cdu_ProcessDiagnoticMsgs()
 
     ddi_ReadCanMessage();
 
-    for (i=0; i< 8; i++)
+    if(CanRxMsgData[0] == 0x23)
     {
+        SOM = 1;
+        EOM = 0;
+    }
+    if(CanRxMsgData[7] == 0x24)
+    {
+            SOM = 0;
+            EOM = 1;
+    }
+
+
+    for (i=1; i< 7; i++)
+    {
+
         switch (CanRxMsgData[i])
         {
             // OBJECT OVERWRITE: SVM Object Data
@@ -60,18 +76,6 @@ void cdu_ProcessDiagnoticMsgs()
                 }
                 break;
 
-            // RESERVED FUNCTION BYTE: Check if first byte is start of message code "0x23"
-            case 0x23:
-                SOM = 1;
-                EOM = 0;
-                break;
-
-            // RESERVED FUNCTION BYTE:Check if first byte is start of message code "0x23"
-            case 0x24:
-                SOM = 0;
-                EOM = 1;
-                break;
-
             // OBJECT OVERWRITE: SVM Object Data
             case 0x25:
                 if(SOM == 1)
@@ -81,6 +85,22 @@ void cdu_ProcessDiagnoticMsgs()
                     SpaceVectorDQZ.Axis2 = 0.25;
                     SpaceVectorDQZ.Axis3 = 0;
                     WrDQZ = 60 ;
+                }
+                break;
+
+            // OBJECT READ: SVM Object Data
+            case 0x02:
+                if(SOM == 1)
+                {
+                    // Prepare TxMsg data with SVM Object data
+                    CanTxMsgData[0] = 0x23;
+                    CanTxMsgData[1] = 0x23;
+                    CanTxMsgData[2] = SvmProfilerObject.pmu_AngleValue;
+                    CanTxMsgData[3] = SvmProfilerObject.pmu_WrDQZ;
+                    CanTxMsgData[4] = SvmProfilerObject.pmu_SpaceVectorDQZ.Axis1;
+                    CanTxMsgData[5] = SvmProfilerObject.pmu_SpaceVectorDQZ.Axis2;
+                    CanTxMsgData[6] = SvmProfilerObject.pmu_SpaceVectorDQZ.Axis3;
+                    CanTxMsgData[7] = 0x24;
                 }
                 break;
 

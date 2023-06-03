@@ -122,67 +122,25 @@ void pdpu_InitPWM(uint32_t pwm_base)
 *
 *******************************************************************************/
 
-void pdpu_UpdateCompareReg(uint32_t pwm_base, VECTOR SVMTransitionTime, VECTOR SV3Phase)
+void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime)
 {
     uint16_t compAValue;
 
-    //ASSERT(EPWM_isBaseValid(pwm_base));
+    //compAValue = SVMTransitionTime.Axis1 * 998;
 
-    if(SV3Phase.Axis1 >=0)
-    {
-        //EPWM_setActionQualifierContSWForceAction(EPWM11_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);
-        //EPWM_setActionQualifierContSWForceAction(EPWM11_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);
-        EALLOW;
-        EPwm11Regs.AQCSFRC.bit.CSFA = 0;
-        EPwm11Regs.AQCSFRC.bit.CSFB = 0;
-        EDIS;
-    }
-    else
-    {
-        //EPWM_setActionQualifierContSWForceAction(EPWM12_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);
-        //EPWM_setActionQualifierContSWForceAction(EPWM12_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);
-        EALLOW;
-        EPwm12Regs.AQCSFRC.bit.CSFA = 0;
-        EPwm12Regs.AQCSFRC.bit.CSFB = 0;
-        EDIS;
-    }
-
-    if(SV3Phase.Axis2 >=0)
-    {
-        //EPWM_setActionQualifierContSWForceAction(EPWM9_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);
-        //EPWM_setActionQualifierContSWForceAction(EPWM9_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);
-        EPwm9Regs.AQCSFRC.bit.CSFA = 1;
-        EPwm9Regs.AQCSFRC.bit.CSFB = 1;
-    }
-    else
-    {
-        //EPWM_setActionQualifierContSWForceAction(EPWM10_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);
-        //EPWM_setActionQualifierContSWForceAction(EPWM10_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);
-        EPwm10Regs.AQCSFRC.bit.CSFA = 1;
-        EPwm10Regs.AQCSFRC.bit.CSFB = 1;
-    }
-
-    if(SV3Phase.Axis3 >=0)
-    {
-        //EPWM_setActionQualifierContSWForceAction(EPWM7_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);
-        //EPWM_setActionQualifierContSWForceAction(EPWM7_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);
-        EPwm7Regs.AQCSFRC.bit.CSFA = 1;
-        EPwm7Regs.AQCSFRC.bit.CSFB = 1;
-    }
-    else
-    {
-        //EPWM_setActionQualifierContSWForceAction(EPWM8_BASE, EPWM_AQ_OUTPUT_A, EPWM_AQ_SW_DISABLED);
-        //EPWM_setActionQualifierContSWForceAction(EPWM8_BASE, EPWM_AQ_OUTPUT_B, EPWM_AQ_SW_DISABLED);
-        EPwm8Regs.AQCSFRC.bit.CSFA = 1;
-        EPwm8Regs.AQCSFRC.bit.CSFB = 1;
-    }
-
-    compAValue = SVMTransitionTime.Axis1 * 998;
+    compAValue = 498;
 
     EPwm12Regs.CMPA.bit.CMPA = compAValue;
-    EPwm12Regs.CMPB.bit.CMPB = compAValue;
-    //EPWM_setCounterCompareValue(pwm_base,EPWM_COUNTER_COMPARE_A,compAValue);
-    //EPWM_setCounterCompareValue(pwm_base,EPWM_COUNTER_COMPARE_B,compAValue);
+    EPwm11Regs.CMPA.bit.CMPA = compAValue;
+
+    //compAValue = SVMTransitionTime.Axis2 * 998;
+    EPwm10Regs.CMPA.bit.CMPA = compAValue;
+    EPwm9Regs.CMPA.bit.CMPA = compAValue;
+
+    //compAValue = SVMTransitionTime.Axis3 * 998;
+    EPwm8Regs.CMPA.bit.CMPA = compAValue;
+    EPwm7Regs.CMPA.bit.CMPA = compAValue;
+
 
 }
 

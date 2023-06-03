@@ -17,6 +17,7 @@
 *******************************************************************************/
 
 #include "ddi_CAN.h"
+#include "F28x_Project.h"
 
 
 
@@ -42,8 +43,8 @@ void ddi_InitializeCAN(void)
 
     CAN_initModule(CANB_BASE);
 
-    //CAN_setBitRate(CANB_BASE, DEVICE_SYSCLK_FREQ, 500000, 16);
-    CAN_setBitRate(CANB_BASE, DEVICE_SYSCLK_FREQ, 125000, 16);
+    CAN_setBitRate(CANB_BASE, DEVICE_SYSCLK_FREQ, 500000, 16);
+    //CAN_setBitRate(CANB_BASE, DEVICE_SYSCLK_FREQ, 125000, 16);
 
     CAN_setupMessageObject(CANB_BASE, TX_MSG_OBJ_ID, 0x95555556,
                                    CAN_MSG_FRAME_EXT, CAN_MSG_OBJ_TYPE_TX, 0,
@@ -69,13 +70,22 @@ void ddi_ReadCanMessage(void)
            // Poll TxOk bit in CAN_ES register to check completion of transmission
            //
 
-           CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanRxMsgData);
+           CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanTxMsgData);
            while(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_TXOK)) !=  CAN_ES_TXOK)
            {
                NOP;
            }
        }
 
+}
+
+void ddi_SendCanMessage(void)
+{
+    CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanTxMsgData);
+    if(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_TXOK)) !=  CAN_ES_TXOK)
+    {
+        DEVICE_DELAY_US(2);
+    }
 }
 
 //End of File

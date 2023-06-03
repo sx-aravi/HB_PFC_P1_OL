@@ -79,7 +79,7 @@ void pdpu_Initialize_PWM_10(void);
 void pdpu_Initialize_PWM_11(void);
 void pdpu_Initialize_PWM_12(void);
 
-extern void pdpu_UpdateCompareReg(uint32_t pwm_base, VECTOR SVMTransitionTime, VECTOR SV3Phase);
+extern void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime);
 extern void pdpu_InitPWM(uint32_t pwm_base);
 
 #endif /* PDU_PWMUPDATE_H_ */

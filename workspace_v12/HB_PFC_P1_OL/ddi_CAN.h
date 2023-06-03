@@ -30,10 +30,12 @@
 #define TX_MSG_OBJ_ID      2
 
 extern uint16_t CanRxMsgData[8];
+extern uint16_t CanTxMsgData[8];
 
 void ddi_ConfigureCAN(void);
 void ddi_InitializeCAN(void);
 void ddi_ReadCanMessage(void);
+void ddi_SendCanMessage(void);
 
 
 

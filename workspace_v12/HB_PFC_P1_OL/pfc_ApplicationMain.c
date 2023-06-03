@@ -48,6 +48,7 @@
 //
 // Included Files
 //
+#include <cdu_MsgProcessor.h>
 #include "F28x_Project.h"
 #include "driverlib.h"
 #include "device.h"
@@ -55,11 +56,9 @@
 #include "siu_PfcBoard.h"
 #include "pdu_PwmUpdate.h"
 #include "ddi_CAN.h"
-#include "cdu_MsgDataProcessor.h"
 #include "pmu_ProfilerData.h"
 
 
-//uint16_t CanRxMsgData[8];
 
 //
 // EPWM12 10 microseconds interrupt service routine
@@ -150,28 +149,27 @@ void main(void)
         // Poll RxOk bit in CAN_ES register to check completion of Reception
         //
 
+
+    /*          if(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_RXOK)) == CAN_ES_RXOK)
+              {
+                  //
+                  // Get the received message
+                  //
+                  CAN_readMessage(CANB_BASE, RX_MSG_OBJ_ID, CanRxMsgData);
+
+                  //
+                  // Poll TxOk bit in CAN_ES register to check completion of transmission
+                  //
+
+                  CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanRxMsgData);
+                  while(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_TXOK)) !=  CAN_ES_TXOK)
+                  {
+                      NOP;
+                  }
+              }*/
+
         cdu_ProcessDiagnoticMsgs();
-
         pmu_SynchronizeProfilerObjects();
-
-        /*
-        if(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_RXOK)) == CAN_ES_RXOK)
-        {
-            //
-            // Get the received message
-            //
-            CAN_readMessage(CANB_BASE, RX_MSG_OBJ_ID, CanRxMsgData);
-
-            //
-            // Poll TxOk bit in CAN_ES register to check completion of transmission
-            //
-
-            CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanRxMsgData);
-            while(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_TXOK)) !=  CAN_ES_TXOK)
-            {
-                NOP;
-            }
-        }*/
 
     }
 
@@ -185,12 +183,13 @@ void main(void)
 __interrupt void epwm12ISR(void)
 {
 
-
+    //GPIO_togglePin(37);
     // Call Space vector Modulation process every 10 microseconds
 
-    GPIO_writePin(37,1);
+
     svm();
-    GPIO_writePin(37,0);
+
+    pdpu_UpdateCompareReg(SpaceVectorTransitionTime);
 
     //
     // Clear INT flag for this timer

@@ -44,10 +44,8 @@ float BiasIn;
 float AngleValue;
 short Segment;
 short Region;
+//float WrDQZ = 0.06;//0.4;
 float WrDQZ = 60;
-
-
-
 short SegmentID;
 //short RegionID;
 
@@ -117,6 +115,37 @@ typedef enum
     ABCtoBCA
 }ROTATE_INDEX;
 
+typedef enum
+{
+    STATE_OFF,
+    STATE_0TO30,
+    STATE_30TO60,
+    STATE_60TO90,
+    STATE_90TO120,
+    STATE_120TO150,
+    STATE_150TO180,
+    STATE_180TO210,
+    STATE_210TO240,
+    STATE_240TO270,
+    STATE_270TO300,
+    STATE_300TO330,
+    STATE_330TO360
+}STATE_NUM;
+
+short Segment_s;
+short SegmentID_s;
+//short Polarity_ph[3];
+short StateNum = 0;
+
+struct PWMEnableTag
+{
+    short Upper_Phase_A_PWM_Enable;
+    short Lower_Phase_A_PWM_Enable;
+    short Upper_Phase_B_PWM_Enable;
+    short Lower_Phase_B_PWM_Enable;
+    short Upper_Phase_C_PWM_Enable;
+    short Lower_Phase_C_PWM_Enable;
+}PWMEnable;
 
 //-----------------------------------------------------------------------------|
 //<<<<<<<<<<<<<<<<<<<< GLOBAL FUNCTION DEFINITIONS >>>>>>>>>>>>>>>>>>>>>>>>>>>>|
@@ -124,14 +153,12 @@ typedef enum
 
 void svm(void)
 {
-    VECTOR RotatedSpaceVectorRXZ;
-
     GenerateSpaceVectorRXZ();
     ConvertRXZtoThreePhase();
-    Segment = DetectSegment(SpaceVector3Phase);
-    RotatedSpaceVectorRXZ = RotateRXZby30Degree(SpaceVectorRXZ);
-    ConvertRotatedRXZtoThreePhase(RotatedSpaceVectorRXZ);
-    SegmentID = DetectSegment(RotatedSpaceVector3Phase);
+    DetectSegmentnSegmentID(SpaceVector3Phase);
+    Segment=Segment_s;
+    SegmentID=SegmentID_s;
+
     DetectRegion();
     CounterRotateSpaceVectorRXZ();
     CalculateTransitions();
@@ -139,9 +166,6 @@ void svm(void)
 
     DlogCh1_SVM = SpaceVectorTransitionTime.Axis1;
     DlogCh2_SVM = SpaceVectorTransitionTime.Axis3;
-
-    pdpu_UpdateCompareReg(EPWM12_BASE,SpaceVectorTransitionTime, SpaceVector3Phase);
-
 }
 
 //local functions
@@ -515,19 +539,8 @@ void GenerateSpaceVectorRXZ()
     else if (AngleValue < 0)
     {
 
-        AngleValue = AngleValue + 1.0;
+        AngleValue = AngleValue + 1;
     }
-
-    if (AngleValue >= 0.5)
-    {
-        //GPIO_writePin(37,1);
-    }
-
-    if (AngleValue <= 0.5)
-    {
-        //GPIO_writePin(37,0);
-    }
-
 
     //%RotationMatrixDQtoRXZ;
     SpaceVectorRXZ = VectDQZtoRXZ(SpaceVectorDQZ, AngleValue);
@@ -669,6 +682,367 @@ short DetectSegment(VECTOR vect3Phase)
           }
 
     return Segment_t;
+}
+
+//
+/*******************************************************************************
+*//**
+* @brief Detecs the space vector segment and segment ID
+* @param SpaceVectorRXZ     - Space Vector in RXZ
+* @param SegmentID          - Space Vector segment ID
+* @retun void
+*
+* Source is mapped to Matlab Model
+* To be docuemnted
+*
+*
+*******************************************************************************/
+void DetectSegmentnSegmentID(VECTOR vect3Phase)
+{
+    switch(StateNum)
+    {
+        case  STATE_OFF: //0
+        {
+            if((AngleValue > 0) && (AngleValue < 0.05))
+            {
+                StateNum = STATE_0TO30;
+                Segment_s = 1;
+                SegmentID_s = 1;
+                /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
+                PWMEnable.Lower_Phase_A_PWM_Enable = 0;
+                PWMEnable.Upper_Phase_B_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_B_PWM_Enable = 1;
+                PWMEnable.Upper_Phase_C_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_C_PWM_Enable = 1;*/
+
+                EALLOW;
+                EPwm12Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase A Channel B Enable  - TP25
+                EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable  - TP28
+
+                EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable - TP34
+                EPwm11Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase A Channel A Enable  - TP31
+
+                EPwm10Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase B Channel B Enable  - TP26
+                EPwm10Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase B Channel A Disable - TP29
+
+                EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable  - TP35
+                EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable  - TP32
+
+                EPwm8Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase C Channel B Enable  - TP27
+                EPwm8Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase C Channel A Disable - TP30
+
+                EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable - TP36
+                EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable - TP33
+
+                EDIS;
+
+            }
+            break;
+        }
+        case STATE_0TO30: //1
+        {
+            if(vect3Phase.Axis2 > 0)
+            {
+                StateNum = STATE_30TO60;
+                SegmentID_s = 2;
+                //PWMEnable.Upper_Phase_B_PWM_Enable = 1;
+                //PWMEnable.Lower_Phase_B_PWM_Enable = 0;
+
+                GPIO_writePin(37,1);
+
+                EALLOW;
+                EPwm10Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase B Channel B Enable
+                //EPwm10Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase B Channel A Enable
+
+                //EPwm9Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase B Channel A Disable
+                EPwm9Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase B Channel B Disable
+
+                EDIS;
+            }
+            else if(vect3Phase.Axis2 < vect3Phase.Axis3)
+            {
+                StateNum = STATE_330TO360;
+                Segment_s = 6;
+            }
+            break;
+        }
+        case STATE_30TO60: //2
+        {
+            if(vect3Phase.Axis2 > vect3Phase.Axis1)
+            {
+                StateNum = STATE_60TO90;
+                Segment_s = 2;
+            }
+            else if(vect3Phase.Axis2 < 0)
+            {
+                StateNum = STATE_0TO30;
+                SegmentID_s = 1;
+                /*PWMEnable.Upper_Phase_B_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_B_PWM_Enable = 1;*/
+
+                EALLOW;
+                EPwm10Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase B Channel B Disable
+                //EPwm10Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase B Channel A Disable
+
+                //EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable
+                EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable
+                EDIS;
+
+            }
+            break;
+        }
+        case STATE_60TO90: //3
+        {
+            if(vect3Phase.Axis1 < 0)
+            {
+                StateNum = STATE_90TO120;
+                SegmentID_s = 3;
+                /*PWMEnable.Upper_Phase_A_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_A_PWM_Enable = 1;*/
+
+                EALLOW;
+                EPwm12Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase A Channel B Disable
+                //EPwm12Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase A Channel A Disable
+
+                //EPwm11Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase A Channel A Enable
+                EPwm11Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase A Channel B Enable
+
+                EDIS;
+            }
+            else if(vect3Phase.Axis2 < vect3Phase.Axis1)
+            {
+                StateNum = STATE_30TO60;
+                Segment_s = 1;
+            }
+            break;
+        }
+        case STATE_90TO120: //4
+        {
+            if(vect3Phase.Axis1 < vect3Phase.Axis3)
+            {
+                StateNum = STATE_120TO150;
+                Segment_s = 3;
+            }
+            else if(vect3Phase.Axis1 > 0)
+            {
+                StateNum = STATE_60TO90;
+                SegmentID_s = 2;
+                /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
+                PWMEnable.Lower_Phase_A_PWM_Enable = 0;*/
+
+                EALLOW;
+                EPwm12Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase A Channel B Enable
+                //EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable
+
+                //EPwm11Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase A Channel A Disable
+                EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable
+                EDIS;
+
+            }
+            break;
+        }
+        case STATE_120TO150: //5
+        {
+            if(vect3Phase.Axis3 > 0)
+            {
+                StateNum = STATE_150TO180;
+                SegmentID_s = 4;
+                /*PWMEnable.Upper_Phase_C_PWM_Enable = 1;
+                PWMEnable.Lower_Phase_C_PWM_Enable = 0;*/
+
+                EALLOW;
+                EPwm8Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase C Channel B Enable
+                //EPwm8Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase C Channel A Enable
+
+                //EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable
+                EPwm7Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase C Channel B Disable
+                EDIS;
+
+            }
+            else if(vect3Phase.Axis1 > vect3Phase.Axis3)
+            {
+                StateNum = STATE_90TO120;
+                Segment_s = 2;
+            }
+            break;
+        }
+        case STATE_150TO180: //6
+        {
+            if(vect3Phase.Axis3 > vect3Phase.Axis2)
+            {
+                StateNum = STATE_180TO210;
+                Segment_s = 4;
+            }
+            else if(vect3Phase.Axis3 < 0)
+            {
+                StateNum = STATE_120TO150;
+                SegmentID_s = 3;
+                /*PWMEnable.Upper_Phase_C_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_C_PWM_Enable = 1;*/
+
+                EALLOW;
+                EPwm8Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase C Channel B Disable
+                //EPwm8Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase C Channel A Disable
+
+                //EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable
+                EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable
+                EDIS;
+            }
+            break;
+        }
+        case STATE_180TO210: //7
+        {
+            if(vect3Phase.Axis2 < 0)
+            {
+                StateNum = STATE_210TO240;
+                SegmentID_s = 5;
+                /*PWMEnable.Upper_Phase_B_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_B_PWM_Enable = 1;*/
+
+                GPIO_writePin(37,0);
+
+                EALLOW;
+                EPwm10Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase B Channel B Disable
+                //EPwm10Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase B Channel A Disable
+
+                //EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable
+                EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable
+                EDIS;
+            }
+            else if(vect3Phase.Axis3 < vect3Phase.Axis2)
+            {
+                StateNum = STATE_150TO180;
+                Segment_s = 3;
+            }
+            break;
+        }
+        case STATE_210TO240: //8
+        {
+            if(vect3Phase.Axis1 > vect3Phase.Axis2)
+            {
+                StateNum = STATE_240TO270;
+                Segment_s = 5;
+            }
+            else if(vect3Phase.Axis2 > 0)
+            {
+                StateNum = STATE_180TO210;
+                SegmentID_s = 4;
+                /*PWMEnable.Upper_Phase_B_PWM_Enable = 1;
+                PWMEnable.Lower_Phase_B_PWM_Enable = 0;*/
+
+                EALLOW;
+                EPwm10Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase B Channel B Enable
+                //EPwm10Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase B Channel A Enable
+
+                //EPwm9Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase B Channel A Disable
+                EPwm9Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase B Channel B Disable
+                EDIS;
+            }
+            break;
+        }
+        case STATE_240TO270: //9
+        {
+            if(vect3Phase.Axis1 > 0)
+            {
+                StateNum = STATE_270TO300;
+                SegmentID_s = 6;
+                /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
+                PWMEnable.Lower_Phase_A_PWM_Enable = 0;*/
+
+                EALLOW;
+                EPwm12Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase A Channel B Enable
+                //EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable
+
+                //EPwm11Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase A Channel A Disable
+                EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable
+                EDIS;
+
+            }
+            else if(vect3Phase.Axis1 < vect3Phase.Axis2)
+            {
+                StateNum = STATE_210TO240;
+                Segment_s = 4;
+            }
+            break;
+        }
+        case STATE_270TO300: //10
+        {
+            if(vect3Phase.Axis1 > vect3Phase.Axis3)
+            {
+                StateNum = STATE_300TO330;
+                Segment_s = 6;
+            }
+            else if(vect3Phase.Axis1 < 0)
+            {
+                StateNum = STATE_240TO270;
+                SegmentID_s = 5;
+                //PWMEnable.Upper_Phase_A_PWM_Enable = 0;
+                //PWMEnable.Lower_Phase_A_PWM_Enable = 1;
+
+                EALLOW;
+                EPwm12Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase A Channel B Disable
+                //EPwm12Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase A Channel A Disable
+
+                //EPwm11Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase A Channel A Enable
+                EPwm11Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase A Channel B Enable
+                EDIS;
+            }
+            break;
+        }
+        case STATE_300TO330: //11
+        {
+            if(vect3Phase.Axis3 < 0)
+            {
+                StateNum = STATE_330TO360;
+                SegmentID_s = 1;
+                //PWMEnable.Upper_Phase_C_PWM_Enable = 0;
+                //PWMEnable.Lower_Phase_C_PWM_Enable = 1;
+
+                EALLOW;
+                EPwm8Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase C Channel B Disable
+                //EPwm8Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase C Channel A Disable
+
+                //EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable
+                EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable
+                EDIS;
+
+            }
+            else if(vect3Phase.Axis1 < vect3Phase.Axis3)
+            {
+                StateNum = STATE_270TO300;
+                Segment_s = 5;
+            }
+            break;
+        }
+        case STATE_330TO360: //12
+        {
+            if(vect3Phase.Axis2 > vect3Phase.Axis3)
+            {
+                StateNum = STATE_0TO30;
+                Segment_s = 1;
+            }
+            else if(vect3Phase.Axis3 > 0)
+            {
+                StateNum = STATE_300TO330;
+                SegmentID_s = 6;
+                //PWMEnable.Upper_Phase_C_PWM_Enable = 1;
+                //PWMEnable.Lower_Phase_C_PWM_Enable = 0;
+
+                EALLOW;
+                EPwm8Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase C Channel B Enable
+                //EPwm8Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase C Channel A Enable
+
+                //EPwm7Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase C Channel A Disable
+                EPwm7Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase C Channel B Disable
+                EDIS;
+            }
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
 }
 
 //
@@ -820,10 +1194,12 @@ void DetectRegion()
 
 }
 
-
 //
 // End of file
 //
+
+
+
 
 
 
