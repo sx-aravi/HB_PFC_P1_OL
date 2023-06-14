@@ -39,9 +39,11 @@ extern "C" {
 #define INV2PI            0.159154943
 #define TWOPI             6.283
 
-//#define TBASE             0.01
-#define TBASE             0.00002
-//#define TBASE           0.00001
+//For 50 KHz
+//#define TBASE             0.00002
+
+//For 100 Khz
+#define TBASE           0.00001
 
 //
 // Globals

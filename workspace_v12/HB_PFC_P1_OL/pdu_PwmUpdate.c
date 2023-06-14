@@ -99,8 +99,8 @@ void pdpu_InitPWM(uint32_t pwm_base)
 
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_PERIOD);
-    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
-    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
+    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
+    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPB);
 
@@ -109,8 +109,8 @@ void pdpu_InitPWM(uint32_t pwm_base)
 
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_PERIOD);
-    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
-    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
+    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
+    EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPB);
 }
@@ -124,23 +124,26 @@ void pdpu_InitPWM(uint32_t pwm_base)
 
 void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime)
 {
-    uint16_t compAValue;
+    uint16_t compAValueUpper;
+    uint16_t compAValueLower;
 
-    //compAValue = SVMTransitionTime.Axis1 * 998;
+    compAValueUpper = (1 - SVMTransitionTime.Axis1) * 499;
+    compAValueLower = SVMTransitionTime.Axis1 * 499;
 
-    compAValue = 498;
+    EPwm12Regs.CMPA.bit.CMPA = compAValueUpper;
+    EPwm11Regs.CMPA.bit.CMPA = compAValueLower;
 
-    EPwm12Regs.CMPA.bit.CMPA = compAValue;
-    EPwm11Regs.CMPA.bit.CMPA = compAValue;
+    compAValueUpper = (1 - SVMTransitionTime.Axis2) * 499;
+    compAValueLower = SVMTransitionTime.Axis2 * 499;
 
-    //compAValue = SVMTransitionTime.Axis2 * 998;
-    EPwm10Regs.CMPA.bit.CMPA = compAValue;
-    EPwm9Regs.CMPA.bit.CMPA = compAValue;
+    EPwm10Regs.CMPA.bit.CMPA = compAValueUpper;
+    EPwm9Regs.CMPA.bit.CMPA = compAValueLower;
 
-    //compAValue = SVMTransitionTime.Axis3 * 998;
-    EPwm8Regs.CMPA.bit.CMPA = compAValue;
-    EPwm7Regs.CMPA.bit.CMPA = compAValue;
+    compAValueUpper = (1 - SVMTransitionTime.Axis3) * 499;
+    compAValueLower = SVMTransitionTime.Axis3 * 499;
 
+    EPwm8Regs.CMPA.bit.CMPA = compAValueUpper;
+    EPwm7Regs.CMPA.bit.CMPA = compAValueLower;
 
 }
 

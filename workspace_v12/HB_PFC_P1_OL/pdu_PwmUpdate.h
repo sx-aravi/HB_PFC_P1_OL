@@ -32,10 +32,11 @@
 // Defines
 //
 
-#define EPWM_TIMER_TBPRD   1000U
-#define EPWM_CMP           500U
-#define EPWM_CMPA          500U
-#define EPWM_CMPB          500U
+#define EPWM_TIMER_TBPRD   500U
+#define EPWM_CMP           250U
+
+#define EPWM_CMPA          250U
+#define EPWM_CMPB          250U
 #define EPWM_CMP_UP        1U
 #define EPWM_CMP_DOWN      0U
 #define MAX_PWM_MODULES    6U

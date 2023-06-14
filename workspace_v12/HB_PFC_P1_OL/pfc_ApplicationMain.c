@@ -66,6 +66,8 @@
 __interrupt void epwm12ISR(void);
 
 
+uint16_t ADCINA5_Val =0;
+uint16_t _100usecTimer =0;
 
 //
 // Main
@@ -143,34 +145,35 @@ void main(void)
     //
     CAN_startModule(CANB_BASE);
 
+    //ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
+    //AdcaRegs.ADCSOCFRC1.bit.SOC0 = 1; //SOC0
+
     for(;;)
     {
-        //
-        // Poll RxOk bit in CAN_ES register to check completion of Reception
-        //
-
-
-    /*          if(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_RXOK)) == CAN_ES_RXOK)
-              {
-                  //
-                  // Get the received message
-                  //
-                  CAN_readMessage(CANB_BASE, RX_MSG_OBJ_ID, CanRxMsgData);
-
-                  //
-                  // Poll TxOk bit in CAN_ES register to check completion of transmission
-                  //
-
-                  CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanRxMsgData);
-                  while(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_TXOK)) !=  CAN_ES_TXOK)
-                  {
-                      NOP;
-                  }
-              }*/
-
         cdu_ProcessDiagnoticMsgs();
         pmu_SynchronizeProfilerObjects();
 
+        //
+        // Convert, wait for completion, and store results
+        //
+
+        //
+        // Convert, wait for completion, and store results
+        //
+        ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
+
+        if (_100usecTimer == 10)
+        {
+            _100usecTimer = 0;
+
+            if (ADC_getInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1) == true)
+            {
+                //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+                //ADCINA5_Val = AdcaResultRegs.ADCRESULT5;
+                ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
+                ADCINA5_Val  = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+            }
+        }
     }
 
 }
@@ -184,12 +187,17 @@ __interrupt void epwm12ISR(void)
 {
 
     //GPIO_togglePin(37);
+    _100usecTimer += 1;
+
     // Call Space vector Modulation process every 10 microseconds
 
+    GPIO_writePin(37,1);
 
     svm();
 
     pdpu_UpdateCompareReg(SpaceVectorTransitionTime);
+
+    GPIO_writePin(37,0);
 
     //
     // Clear INT flag for this timer

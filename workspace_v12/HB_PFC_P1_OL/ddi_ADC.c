@@ -30,33 +30,51 @@
 void ddi_ConfigureADCs()
 {
 
-       EALLOW;
+    //
+    // Set ADCDLK divider to /4
+    //
+    ADC_setPrescaler(ADCA_BASE, ADC_CLK_DIV_4_0);
+
+    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
+
+    //
+    // Set pulse positions to late
+    //
+    ADC_setInterruptPulseMode(ADCA_BASE, ADC_PULSE_END_OF_CONV);
+
+    //
+    // Power up the ADCs and then delay for 1 ms
+    //
+    ADC_enableConverter(ADCA_BASE);
+
+    DEVICE_DELAY_US(1000);
+
+
+       /*EALLOW;
 
        //
        //write configurations
        //
-       AdcbRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
+       AdcaRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
 
-       ADC_setMode(ADCB_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
-
-       //AdcSetMode(ADC_ADCB, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE);
+       ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
 
        //
        //Set pulse positions to late
        //
-       AdcbRegs.ADCCTL1.bit.INTPULSEPOS = 1;
+       AdcaRegs.ADCCTL1.bit.INTPULSEPOS = 1;
 
        //
        //power up the ADC
        //
-       AdcbRegs.ADCCTL1.bit.ADCPWDNZ = 1;
+       AdcaRegs.ADCCTL1.bit.ADCPWDNZ = 1;
 
        //
        //delay for 1ms to allow ADC time to power up
        //
        DELAY_US(1000);
 
-       EDIS;
+       EDIS;*/
 
 }
 
@@ -70,10 +88,29 @@ void ddi_ConfigureADCs()
 
 void ddi_InitializeADCs()
 {
+    //
+    //Select the channels to convert and end of conversion flag
+    //
+    /*EALLOW;
+    AdcaRegs.ADCSOC0CTL.bit.CHSEL = 5;  //SOC0 will convert pin A5
+    AdcaRegs.ADCSOC0CTL.bit.ACQPS = 30; //sample window is 100 SYSCLK cycles
+    AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = 0; // Software only
+    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = 0; //end of SOC0 will set INT1 flag
+    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;   //enable INT1 flag
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+    EDIS;*/
 
-    ddi_SetupADCContinuousMode();
+    ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_SW_ONLY,
+                 ADC_CH_ADCIN5, 15);
+    //
+    // Set SOC0 to set the interrupt 1 flag. Enable the interrupt and make
+    // sure its flag is cleared.
+    //
+    ADC_setInterruptSource(ADCA_BASE, ADC_INT_NUMBER1, ADC_SOC_NUMBER0);
+    ADC_enableInterrupt(ADCA_BASE, ADC_INT_NUMBER1);
+    ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
 
-}
+ }
 
 
 
@@ -102,20 +139,9 @@ void ddi_SetupADCContinuousMode()
     //   ensure the data collection loop can keep up with the ADC
     //
 
+    ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_SW_ONLY,
+                     ADC_CH_ADCIN5, acqps);
 
-    //
-    //Select the channels to convert and end of conversion flag
-    //
-    EALLOW;
-    AdcbRegs.ADCSOC0CTL.bit.CHSEL = 0;  //SOC0 will convert pin B0
-    AdcbRegs.ADCSOC0CTL.bit.ACQPS = acqps; //sample window is 100 SYSCLK cycles
-    //AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = 5; //trigger on ePWM1 SOCA/C
-    AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = 0x1C; //trigger on ePWM12 SOCB
-    AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = 0; //end of SOC0 will set INT1 flag
-    //AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1;   //enable INT1 flag
-    AdcbRegs.ADCINTSEL1N2.bit.INT1E = 0;
-    AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
-    EDIS;
 
 }
 
