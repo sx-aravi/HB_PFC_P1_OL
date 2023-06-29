@@ -32,11 +32,16 @@
 // Defines
 //
 
+//50 KHz --> 1000 count
+//#define EPWM_TIMER_TBPRD   1000U
+//#define EPWM_CMP           500U
+
+//100 KHz --> 500 count
 #define EPWM_TIMER_TBPRD   500U
 #define EPWM_CMP           250U
 
-#define EPWM_CMPA          250U
-#define EPWM_CMPB          250U
+#define EPWM_CMPA          500U
+#define EPWM_CMPB          500U
 #define EPWM_CMP_UP        1U
 #define EPWM_CMP_DOWN      0U
 #define MAX_PWM_MODULES    6U
@@ -66,7 +71,7 @@ typedef struct
 
 
 /*******************************************************************************
-* @brief This module shall Initialize the PWM module per the applciation needs
+* @brief This module shall Initialize the PWM module per the application needs
 *
 *******************************************************************************/
 
@@ -82,5 +87,19 @@ void pdpu_Initialize_PWM_12(void);
 
 extern void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime);
 extern void pdpu_InitPWM(uint32_t pwm_base);
+extern void pdpu_Disable_All_Phases();
+
+
+void pdpu_Enable_Phase_A_UpperChannel_B();
+void pdpu_Enable_Phase_A_LowerChannel_B();
+
+void pdpu_Enable_Phase_B_UpperChannel_B();
+void pdpu_Enable_Phase_B_LowerChannel_B();
+
+void pdpu_Enable_Phase_C_UpperChannel_B();
+void pdpu_Enable_Phase_C_LowerChannel_B();
+
+
+
 
 #endif /* PDU_PWMUPDATE_H_ */

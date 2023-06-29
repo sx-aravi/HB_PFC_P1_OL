@@ -57,8 +57,7 @@
 #include "pdu_PwmUpdate.h"
 #include "ddi_CAN.h"
 #include "pmu_ProfilerData.h"
-
-
+#include "dmu_CcsDataLog.h"
 
 //
 // EPWM12 10 microseconds interrupt service routine
@@ -67,7 +66,24 @@ __interrupt void epwm12ISR(void);
 
 
 uint16_t ADCINA5_Val =0;
-uint16_t _100usecTimer =0;
+
+
+//
+//OPen following code for RAM version code to allow debugging
+/*float DBUFF_4CH1[200],
+      DBUFF_4CH2[200],
+      DBUFF_4CH3[200],
+      DBUFF_4CH4[200],
+      DlogCh1,
+      DlogCh2,
+      DlogCh3,
+      DlogCh4;
+//
+// Create an instance of DATALOG Module
+//
+DLOG_4CH_F dlog_4ch1;
+
+*/
 
 //
 // Main
@@ -75,7 +91,6 @@ uint16_t _100usecTimer =0;
 void main(void)
 
 {
-
 
     //
     // Initialize device clock and peripherals
@@ -109,6 +124,22 @@ void main(void)
     //
 
     siu_ConfigurePfcBoard();
+
+    // Initialize DLOG
+    //Disabled for FLASH version code; open for RAM version code
+	/*DLOG_4CH_F_init(&dlog_4ch1);
+	dlog_4ch1.input_ptr1 = &DlogCh1;
+	dlog_4ch1.input_ptr2 = &DlogCh2;
+	dlog_4ch1.input_ptr3 = &DlogCh3;
+	dlog_4ch1.input_ptr4 = &DlogCh4;
+	dlog_4ch1.output_ptr1 = &DBUFF_4CH1[0];
+	dlog_4ch1.output_ptr2 = &DBUFF_4CH2[0];
+	dlog_4ch1.output_ptr3 = &DBUFF_4CH3[0];
+	dlog_4ch1.output_ptr4 = &DBUFF_4CH4[0];
+	dlog_4ch1.size = 200;
+	dlog_4ch1.pre_scalar = 5; //1
+	dlog_4ch1.trig_value = 0.01;
+	dlog_4ch1.status = 2;*/
 
     //
     // Disable sync(Freeze clock to PWM as well)
@@ -148,32 +179,38 @@ void main(void)
     //ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
     //AdcaRegs.ADCSOCFRC1.bit.SOC0 = 1; //SOC0
 
+    //Fault Reset, DSPEN default values during the system initialization.
+    GPIO_writePin(32,0);
+    GPIO_writePin(29,0);
+
+
     for(;;)
     {
         cdu_ProcessDiagnoticMsgs();
         pmu_SynchronizeProfilerObjects();
 
-        //
-        // Convert, wait for completion, and store results
-        //
-
-        //
-        // Convert, wait for completion, and store results
-        //
-        ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
-
-        if (_100usecTimer == 10)
+        //Read /vDCFT, /iDCFT, /TMPFT, /vPHFT and /iFLT faults from inverter hardware and disable the inverter
+        /*if((GPIO_readPin(33) == 1) | (GPIO_readPin(34) == 1) | (GPIO_readPin(35) == 1) |(GPIO_readPin(63) == 1))
         {
-            _100usecTimer = 0;
+            InverterState = OFF;
+        }*/
 
-            if (ADC_getInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1) == true)
-            {
-                //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
-                //ADCINA5_Val = AdcaResultRegs.ADCRESULT5;
-                ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
-                ADCINA5_Val  = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
-            }
+
+
+        //
+        // Convert, wait for completion, and store results
+        //
+        /*
+        if (ADC_getInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1) == true)
+        {
+            ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
+            //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+            //ADCINA5_Val = AdcaResultRegs.ADCRESULT5;
+            ADCINA5_Val  = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+            ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
         }
+        */
+
     }
 
 }
@@ -186,16 +223,32 @@ void main(void)
 __interrupt void epwm12ISR(void)
 {
 
-    //GPIO_togglePin(37);
-    _100usecTimer += 1;
-
     // Call Space vector Modulation process every 10 microseconds
 
     GPIO_writePin(37,1);
 
     svm();
 
-    pdpu_UpdateCompareReg(SpaceVectorTransitionTime);
+    if (InverterState == ON)
+    {
+        pdpu_UpdateCompareReg(SpaceVectorTransitionTime);
+    }
+
+    //DlogCh1 = DlogCh1_SVM;
+    //DlogCh2 = DlogCh2_SVM;
+
+
+    // Debug
+    //DLOG_4CH_F_FUNC(&dlog_4ch1);
+
+
+
+    //Read /vDCFT, /iDCFT, /TMPFT, /vPHFT and /iFLT faults from inverter hardware and disable the inverter
+    /*if((GPIO_readPin(33) == 1) | (GPIO_readPin(34) == 1) | (GPIO_readPin(35) == 1) |(GPIO_readPin(63) == 1))
+    {
+        InverterState = OFF;
+    }*/
+
 
     GPIO_writePin(37,0);
 
@@ -209,7 +262,7 @@ __interrupt void epwm12ISR(void)
     //
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
 
-
+    //GPIO_writePin(37,0);
 }
 
 

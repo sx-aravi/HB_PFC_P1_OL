@@ -69,12 +69,13 @@ void ddi_ReadCanMessage(void)
            //
            // Poll TxOk bit in CAN_ES register to check completion of transmission
            //
-
+           /*
            CAN_sendMessage(CANB_BASE, TX_MSG_OBJ_ID, TX_MSG_DATA_LENGTH, CanTxMsgData);
            while(((HWREGH(CANB_BASE + CAN_O_ES) & CAN_ES_TXOK)) !=  CAN_ES_TXOK)
            {
                NOP;
            }
+           */
        }
 
 }

@@ -105,6 +105,7 @@ void pdpu_InitPWM(uint32_t pwm_base)
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_A, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPB);
 
 
+
     // EPWM - ePWM Channel B - Action Qualifier Initialization
 
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);
@@ -124,26 +125,40 @@ void pdpu_InitPWM(uint32_t pwm_base)
 
 void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime)
 {
-    uint16_t compAValueUpper;
-    uint16_t compAValueLower;
+    /*
+    if (SVMTransitionTime.Axis1 < 0)
+    {
+        SVMTransitionTime.Axis1 = - SVMTransitionTime.Axis1;
+    }
 
-    compAValueUpper = (1 - SVMTransitionTime.Axis1) * 499;
-    compAValueLower = SVMTransitionTime.Axis1 * 499;
+     if (SVMTransitionTime.Axis2 < 0)
+     {
+         SVMTransitionTime.Axis2 = - SVMTransitionTime.Axis2;
+     }
 
-    EPwm12Regs.CMPA.bit.CMPA = compAValueUpper;
-    EPwm11Regs.CMPA.bit.CMPA = compAValueLower;
+     if (SVMTransitionTime.Axis3 < 0)
+     {
+         SVMTransitionTime.Axis3 = - SVMTransitionTime.Axis3;
+     }*/
 
-    compAValueUpper = (1 - SVMTransitionTime.Axis2) * 499;
-    compAValueLower = SVMTransitionTime.Axis2 * 499;
+    EPwm12Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis1 * 500;
+    EPwm11Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis1 * 500;
 
-    EPwm10Regs.CMPA.bit.CMPA = compAValueUpper;
-    EPwm9Regs.CMPA.bit.CMPA = compAValueLower;
+    //EPwm12Regs.CMPA.bit.CMPA = 50;
+    //EPwm11Regs.CMPA.bit.CMPA = 50;
 
-    compAValueUpper = (1 - SVMTransitionTime.Axis3) * 499;
-    compAValueLower = SVMTransitionTime.Axis3 * 499;
+    EPwm10Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis2 * 500;
+    EPwm9Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis2 * 500;
 
-    EPwm8Regs.CMPA.bit.CMPA = compAValueUpper;
-    EPwm7Regs.CMPA.bit.CMPA = compAValueLower;
+    //EPwm10Regs.CMPA.bit.CMPA = 50;
+    //EPwm9Regs.CMPA.bit.CMPA = 50;
+
+    EPwm8Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis3 * 500;
+    EPwm7Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis3 * 500;
+
+    //EPwm8Regs.CMPA.bit.CMPA = 50;
+    //EPwm7Regs.CMPA.bit.CMPA = 50;
+
 
 }
 
@@ -563,5 +578,193 @@ void pdpu_Initialize_PWM_12()
     EPwm12Regs.AQCTLB.bit.CAD = 0;          // No change PWMB on event B, down count
 
 }
+
+/*****************************************************************************************************
+* @brief This module shall enable action qualifiers for Upper phase A
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Enable_Phase_A_UpperChannel_B()
+{
+    // Enable 12B, Disable 11B
+
+    EALLOW;
+
+    EPwm12Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase A Channel B Enable  - TP25
+    EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable - TP31
+
+    EPwm12Regs.AQCTLA.bit.CAU = AQ_SET;      // Set PWM12A on event A, up count
+    EPwm12Regs.AQCTLA.bit.CAD = AQ_CLEAR;    // Clear   PWM12A on event A, down count
+
+    EPwm11Regs.AQCTLA.bit.CAU = AQ_SET;   // Clear   PWM11A on event A, up count
+    EPwm11Regs.AQCTLA.bit.CAD = AQ_CLEAR;     // Set PWM11A on event A, down count
+
+    EDIS;
+
+    //GPIO_writePin(37,1);
+
+}
+
+/*****************************************************************************************************
+* @brief This module shall enable action qualifiers for Lower phase A
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Enable_Phase_A_LowerChannel_B()
+{
+    // Disable 12B, Enable 11B
+
+    EALLOW;
+    EPwm12Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase A Channel B Disable  - TP25
+    EPwm11Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase A Channel B Enable   - TP31
+
+    EPwm12Regs.AQCTLA.bit.CAU = AQ_CLEAR;  // Clear PWM12A on event A, up count
+    EPwm12Regs.AQCTLA.bit.CAD = AQ_SET;    // Set   PWM12A on event A, down count
+
+    EPwm11Regs.AQCTLA.bit.CAU = AQ_CLEAR;   // Set   PWM11A on event A, up count
+    EPwm11Regs.AQCTLA.bit.CAD = AQ_SET; // Clear PWM11A on event A, down count
+
+    EPwm11Regs.AQCTLB.bit.CAU = AQ_SET;   // Set   PWM11B on event A, up count
+    EPwm11Regs.AQCTLB.bit.CAD = AQ_CLEAR; // Clear PWM11B on event A, down count
+
+    EDIS;
+
+    //GPIO_writePin(37,0);
+
+}
+
+/*****************************************************************************************************
+* @brief This module shall enable action qualifiers for Upper phase B
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Enable_Phase_B_UpperChannel_B()
+{
+    // Enable 10B, Disable 9B
+
+    EALLOW;
+    EPwm10Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase B Channel B Enable  - TP26
+    EPwm9Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase B Channel B Disable - TP32
+
+    EPwm10Regs.AQCTLA.bit.CAU = AQ_SET;      // Set PWM10A on event A, up count
+    EPwm10Regs.AQCTLA.bit.CAD = AQ_CLEAR;    // Clear   PWM10A on event A, down count
+
+    EPwm9Regs.AQCTLA.bit.CAU = AQ_SET;   // Clear   PWM9A on event A, up count
+    EPwm9Regs.AQCTLA.bit.CAD = AQ_CLEAR;     // Set PWM9A on event A, down count
+
+
+    EDIS;
+
+    //GPIO_writePin(37,1);
+
+}
+
+/*****************************************************************************************************
+* @brief This module shall enable action qualifiers for Lower phase B
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Enable_Phase_B_LowerChannel_B()
+{
+    // Disable 10B, Enable 9B
+
+    EALLOW;
+    EPwm10Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase B Channel B Disable  - TP26
+    EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable   - TP32
+
+    EPwm10Regs.AQCTLA.bit.CAU = AQ_CLEAR;  // Clear PWM10A on event A, up count
+    EPwm10Regs.AQCTLA.bit.CAD = AQ_SET;    // Set   PWM10A on event A, down count
+
+    EPwm9Regs.AQCTLA.bit.CAU = AQ_CLEAR;   // Set   PWM9A on event A, up count
+    EPwm9Regs.AQCTLA.bit.CAD = AQ_SET; // Clear PWM9A on event A, down count
+
+    EPwm9Regs.AQCTLB.bit.CAU = AQ_SET;   // Set   PWM9B on event A, up count
+    EPwm9Regs.AQCTLB.bit.CAD = AQ_CLEAR; // Clear PWM9B on event A, down count
+
+
+    EDIS;
+
+    //GPIO_writePin(37,0);
+
+}
+
+
+/*****************************************************************************************************
+* @brief This module shall enable action qualifiers for Upper phase C
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Enable_Phase_C_UpperChannel_B()
+{
+    // Enable 8B, Disable 7B
+
+    EALLOW;
+    EPwm8Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase C Channel B Enable  - TP27
+    EPwm7Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase C Channel B Disable - TP33
+
+    EPwm8Regs.AQCTLA.bit.CAU = AQ_SET;      // Set PWM8A on event A, up count
+    EPwm8Regs.AQCTLA.bit.CAD = AQ_CLEAR;    // Clear PWM8A on event A, down count
+
+    EPwm7Regs.AQCTLA.bit.CAU = AQ_SET;   // Clear   PWM7A on event A, up count
+    EPwm7Regs.AQCTLA.bit.CAD = AQ_CLEAR;     // Set PWM7A on event A, down count
+
+    EDIS;
+
+    //GPIO_writePin(37,1);
+
+}
+
+/*****************************************************************************************************
+* @brief This module shall enable action qualifiers for Lower phase C
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Enable_Phase_C_LowerChannel_B()
+{
+    // Disable 8B, Enable 7B
+
+    EALLOW;
+    EPwm8Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase C Channel B Disable  - TP27
+    EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable   - TP33
+
+    EPwm8Regs.AQCTLA.bit.CAU = AQ_CLEAR;  // Clear PWM8A on event A, up count
+    EPwm8Regs.AQCTLA.bit.CAD = AQ_SET;    // Set   PWM8A on event A, down count
+
+    EPwm7Regs.AQCTLA.bit.CAU = AQ_CLEAR;   // Set   PWM7A on event A, up count
+    EPwm7Regs.AQCTLA.bit.CAD = AQ_SET; // Clear PWM7A on event A, down count
+
+    EPwm7Regs.AQCTLB.bit.CAU = AQ_SET;   // Set   PWM7B on event A, up count
+    EPwm7Regs.AQCTLB.bit.CAD = AQ_CLEAR; // Clear PWM7B on event A, down count
+
+    EDIS;
+
+    //GPIO_writePin(37,0);
+
+}
+
+/*****************************************************************************************************
+* @brief This module shall disable action qualifiers for all phases
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdpu_Disable_All_Phases()
+{
+    // Disable All phases
+
+    EALLOW;
+    EPwm12Regs.AQCSFRC.bit.CSFB = 1;
+    EPwm11Regs.AQCSFRC.bit.CSFB = 1;
+    EPwm10Regs.AQCSFRC.bit.CSFB = 1;
+    EPwm9Regs.AQCSFRC.bit.CSFB = 1;
+    EPwm8Regs.AQCSFRC.bit.CSFB = 1;
+    EPwm7Regs.AQCSFRC.bit.CSFB = 1;
+    EDIS;
+
+    //GPIO_writePin(37,0);
+
+}
+
+
+
 
 //END OF FILE

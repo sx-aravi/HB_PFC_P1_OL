@@ -28,11 +28,15 @@ typedef struct
 #define ONEBYSQRT2      ( 0.70721 )
 #define SQRT3BY2        ( 0.866602)
 #define PMW_PERIOD      ( 50e-6   )
+#define TWOBYSQRT3      (1.1547005383)
+#define ONEBYSQRT3      (0.5773502691896258)
 
 
 
 extern VECTOR VectDQZtoRXZ(VECTOR VectDQZ, float theta);
 extern VECTOR VectRXZtoABC(VECTOR VectRXZ);
+extern VECTOR VectRXZtoABCSin(VECTOR VectRXZ);
+extern VECTOR RotateRXZby30Degree(VECTOR VectorRXZ);
 
 
 

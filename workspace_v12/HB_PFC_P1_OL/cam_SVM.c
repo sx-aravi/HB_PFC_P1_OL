@@ -27,7 +27,8 @@
 
 #define SQRT2       1.41421
 #define SQRT3       1.73205
-#define ONEBYSQRT3  0.57735
+//#define ONEBYSQRT3  0.57735
+#define THREEBYSQRT2 2.1213203
 //#define ONEBYSQRT2  0.70721
 //#define SQRT3BY2    0.866602
 //
@@ -46,24 +47,41 @@ short Segment;
 short Region;
 //float WrDQZ = 0.06;//0.4;
 float WrDQZ = 60;
+//float WrDQZ = -60;
 short SegmentID;
 //short RegionID;
 
 float DlogCh1_SVM = 0;
 float DlogCh2_SVM = 0;
 
-VECTOR SpaceVectorDQZ = {0.75, 0, 0};
+VECTOR SpaceVectorDQZ = {0.866, 0, 0};
+//VECTOR SpaceVectorDQZ = {0.5, 0, 0};
+//VECTOR SpaceVectorDQZ = {0.433, 0, 0};
+//VECTOR SpaceVectorDQZ = {0.217, 0, 0};
+
 VECTOR SpaceVectorRXZ;
 VECTOR CounterRotatedRXZ;
 VECTOR TransitionTimes;
 VECTOR SpaceVectorTransitionTime;
 VECTOR SpaceVector3Phase;
 VECTOR RotatedSpaceVector3Phase;
+VECTOR CounterRotatedRXZ1;
+
+
+VECTOR SpaceVector3FSin;
+VECTOR TempDebugVector;
+short TempDebugVar;
+
+// Variables for external control via CAN
+short InverterState = OFF;
+short GpioFaultResetBit = 0;
+short GpioEnableBit = 0;
+
 
 /** Vector to store the three axis of the three phase current / voltage
 *   for control algorithm */
 
-typedef enum
+/*typedef enum
 {
     FAULT_S,
     _0TO60,
@@ -72,7 +90,20 @@ typedef enum
     _180TO240,
     _240TO300,
     _300TO360
+}SEGMENT_ID;*/
+
+
+typedef enum
+{
+    FAULT_S,
+    _330to030,
+    _030to090,
+    _090to150,
+    _150to210,
+    _210to270,
+    _270to330
 }SEGMENT_ID;
+
 
 typedef enum
 {
@@ -90,16 +121,16 @@ typedef enum
 {
     DEFAULT,
     REGION_1A,
-    REGION_2A,
     REGION_1B,
+    REGION_2A,
     REGION_2B,
     REGION_3A,
-    REGION_4A,
     REGION_3B,
+    REGION_4A,
     REGION_4B,
     REGION_5A,
-    REGION_6A,
-    REGION_5B,
+    REGION_5B, //REGION_6A,
+    REGION_6A, //REGION_5B,
     REGION_6B
 }REGION_INDEX;  //RegionIndex
 
@@ -159,14 +190,16 @@ void svm(void)
     Segment=Segment_s;
     SegmentID=SegmentID_s;
 
-    DetectRegion();
+    //DetectRegion();
     CounterRotateSpaceVectorRXZ();
+    DetectRegion();
     CalculateTransitions();
     RotateSpaceVectorRXZ();
 
-    DlogCh1_SVM = SpaceVectorTransitionTime.Axis1;
-    DlogCh2_SVM = SpaceVectorTransitionTime.Axis3;
-}
+    DlogCh1_SVM = SegmentID; //TempDebugVar; //SpaceVectorTransitionTime.Axis1; //CounterRotatedRXZ1.Axis1;//TempDebugVar;
+    DlogCh2_SVM = SpaceVectorTransitionTime.Axis1;//TransitionTimes.Axis3; //CounterRotatedRXZ1.Axis3;//
+
+  }
 
 //local functions
 //
@@ -188,69 +221,77 @@ void svm(void)
 void CounterRotateSpaceVectorRXZ()
 {
 
-    switch (Segment)
+    //SpaceVector3FSin = VectRXZtoABCSin(SpaceVectorRXZ);
+
+    switch (SegmentID)
     {
 
-        case _0TO60: // (1/sqrt(3))*[0, 2, sqrt(2);   -sqrt(3), -1, sqrt(2);  sqrt(3), -1, sqrt(2);]
+        case _330to030: // [ 1, 0,  0;      0, 1, 0;      0, 0, 1;]
             {
-                CounterRotatedRXZ.Axis1 = ((     0 * SpaceVectorRXZ.Axis1) + ( 2 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis2 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis3 = (( SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis1 = SpaceVector3FSin.Axis1;
+                CounterRotatedRXZ.Axis2 = SpaceVector3FSin.Axis2;
+                CounterRotatedRXZ.Axis3 = SpaceVector3FSin.Axis3;
 
                 break;
             }
 
-        case _60TO120: // (1/sqrt(3))*[-sqrt(3), 1, -sqrt(2);  0, -2, -sqrt(2);   sqrt(3), 1, -sqrt(2);]
+        case _030to090: // [ 0, 0,  -1;      -1, 0, 0;      0, -1, 0;]
             {
-                CounterRotatedRXZ.Axis1 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis2 = ((     0 * SpaceVectorRXZ.Axis1) + (-2 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis3 = (( SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                CounterRotatedRXZ.Axis1 = -SpaceVector3FSin.Axis3;
+                CounterRotatedRXZ.Axis2 = -SpaceVector3FSin.Axis1;
+                CounterRotatedRXZ.Axis3 = -SpaceVector3FSin.Axis2;
 
                 break;
             }
 
-        case _120TO180: // (1/sqrt(3))*[-sqrt(3), -1, sqrt(2);   sqrt(3), -1, sqrt(2);  0, 2, sqrt(2);]
+        case _090to150: // [ 0, 1,  0;      0, 0, 1;      1, 0, 0;]
             {
-                CounterRotatedRXZ.Axis1 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis2 = (( SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis3 = ((     0 * SpaceVectorRXZ.Axis1) + ( 2 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                CounterRotatedRXZ.Axis1 = SpaceVector3FSin.Axis2;
+                CounterRotatedRXZ.Axis2 = SpaceVector3FSin.Axis3;
+                CounterRotatedRXZ.Axis3 = SpaceVector3FSin.Axis1;
+
 
                 break;
             }
 
-        case _180TO240: // (-1/sqrt(3))*[0, 2, sqrt(2);   -sqrt(3), -1, sqrt(2);  sqrt(3), -1, sqrt(2);]
+        case _150to210: // [-1, 0, 0;      0, -1, 0;        0, 0, -1;]
             {
-                CounterRotatedRXZ.Axis1 = ((     0 * SpaceVectorRXZ.Axis1) + (-2 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis2 = (( SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis3 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                CounterRotatedRXZ.Axis1 = -SpaceVector3FSin.Axis1;
+                CounterRotatedRXZ.Axis2 = -SpaceVector3FSin.Axis2;
+                CounterRotatedRXZ.Axis3 = -SpaceVector3FSin.Axis3;
 
                 //BiasOut = BiasIn;
                 break;
             }
 
-        case _240TO300: // (-1/sqrt(3))*[-sqrt(3), 1, -sqrt(2);  0, -2, -sqrt(2);   sqrt(3), 1, -sqrt(2);]
+        case _210to270: // [ 0, 0,  1;      1, 0, 0;      0, 1, 0;]
             {
-                CounterRotatedRXZ.Axis1 = (( SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis2 = ((     0 * SpaceVectorRXZ.Axis1) + ( 2 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis3 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + (-1 * SpaceVectorRXZ.Axis2) + (SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+                CounterRotatedRXZ.Axis1 = SpaceVector3FSin.Axis3;
+                CounterRotatedRXZ.Axis2 = SpaceVector3FSin.Axis1;
+                CounterRotatedRXZ.Axis3 = SpaceVector3FSin.Axis2;
 
                 break;
             }
 
-        case _300TO360: // (-1/sqrt(3))*[-sqrt(3), -1, sqrt(2);   sqrt(3), -1, sqrt(2);  0, 2, sqrt(2);]
+        case _270to330: // [ 0, -1, 0;      0, 0,  -1;    -1, 0, 0;]
+
             {
-                CounterRotatedRXZ.Axis1 = (( SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis2 = ((-SQRT3 * SpaceVectorRXZ.Axis1) + ( 1 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
-                CounterRotatedRXZ.Axis3 = ((     0 * SpaceVectorRXZ.Axis1) + (-2 * SpaceVectorRXZ.Axis2)  + (-SQRT2 * SpaceVectorRXZ.Axis3)) * ONEBYSQRT3;
+
+                CounterRotatedRXZ.Axis1 = -SpaceVector3FSin.Axis2;
+                CounterRotatedRXZ.Axis2 = -SpaceVector3FSin.Axis3;
+                CounterRotatedRXZ.Axis3 = -SpaceVector3FSin.Axis1;
 
                 break;
             }
 
         default:
             {
-                 CounterRotatedRXZ.Axis1 = 0;
-                 CounterRotatedRXZ.Axis2 = 0;
-                 CounterRotatedRXZ.Axis3 = 0;
+                CounterRotatedRXZ.Axis1 = 0;
+                CounterRotatedRXZ.Axis2 = 0;
+                CounterRotatedRXZ.Axis3 = 0;
 
                  break;
             }
@@ -280,126 +321,135 @@ void CalculateTransitions()
     float TransitionBias;
     short region_index;
 
+
     short TransitionLookUpTable [7][7] = {{0,0,0,0,0,0,0},
-                                        {0,1,2,5,8,9,12},
-                                        {0,3,4,7,6,11,10},
-                                        {0,1,2,5,8,9,12},
-                                        {0,3,4,7,6,11,10},
-                                        {0,1,2,5,8,9,12},
-                                        {0,3,4,7,6,11,10}
-                                       };
+                                          {0,1,3,5,8,9,11},
+                                          {0,2,4,6,7,10,12},
+                                          {0,1,3,5,8,9,11},
+                                          {0,2,4,6,7,10,12},
+                                          {0,1,3,5,8,9,11},
+                                          {0,2,4,6,7,10,12}
+                                         };
 
     region_index = TransitionLookUpTable[SegmentID][Region];
+
+    TempDebugVar = region_index;
+
+    CounterRotatedRXZ1.Axis1 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (0 * CounterRotatedRXZ.Axis3));
+    CounterRotatedRXZ1.Axis2 = ((     0 * CounterRotatedRXZ.Axis1) + (1 * CounterRotatedRXZ.Axis2)  + (0 * CounterRotatedRXZ.Axis3));
+    CounterRotatedRXZ1.Axis3 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (1 * CounterRotatedRXZ.Axis3));
+
 
     switch (region_index)
     {
 
         case REGION_1A: //case 1 -  [ 0, 0, -1;   2, 0, 1;   0, 0, 1;], + [1; 0 ; 0;]
             {
-                TransitionVector.Axis1 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) + 1;
-                TransitionVector.Axis2 = ((     2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) + 0;
-                TransitionVector.Axis3 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) + 0;
+                TransitionVector.Axis1 = ((     0 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 1 * CounterRotatedRXZ1.Axis3)) + 0;
+                TransitionVector.Axis2 = ((    -2 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + (-1 * CounterRotatedRXZ1.Axis3)) + 1;
+                TransitionVector.Axis3 = ((     0 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + (-1 * CounterRotatedRXZ1.Axis3)) + 1;
 
                 break;
             }
         case REGION_1B: //case 3 - [ 0, 0, -1;   -2, 0, -1;   0, 0, 1;], + [1; 1 ; 0;]
             {
-                TransitionVector.Axis1 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) + 1;
-                TransitionVector.Axis2 = ((    -2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) + 1;
-                TransitionVector.Axis3 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) + 0;
+                TransitionVector.Axis1 = ((     0 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 1 * CounterRotatedRXZ1.Axis3)) + 0;
+                TransitionVector.Axis2 = ((     2 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 1 * CounterRotatedRXZ1.Axis3)) + 0;
+                TransitionVector.Axis3 = ((     0 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + (-1 * CounterRotatedRXZ1.Axis3)) + 1;
 
                 break;
             }
 
         case REGION_2A: //case 2 - [ -1, 0, 0;   1, 0, 2;   1, 0,  0;], + [1; 0 ; 0;]
             {
-                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (0 * CounterRotatedRXZ.Axis3)) + 1;
-                TransitionVector.Axis2 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (2 * CounterRotatedRXZ.Axis3)) + 0;
-                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (0 * CounterRotatedRXZ.Axis3)) + 0;
+                TransitionVector.Axis1 = ((    0 * CounterRotatedRXZ1.Axis1) + (-1 * CounterRotatedRXZ1.Axis2)  + (0 * CounterRotatedRXZ1.Axis3)) + 0;
+                TransitionVector.Axis2 = ((    0 * CounterRotatedRXZ1.Axis1) + ( 1 * CounterRotatedRXZ1.Axis2)  + (0 * CounterRotatedRXZ1.Axis3)) + 1;
+                TransitionVector.Axis3 = ((    2 * CounterRotatedRXZ1.Axis1) + ( 1 * CounterRotatedRXZ1.Axis2)  + (0 * CounterRotatedRXZ1.Axis3)) + 1;
 
                 break;
             }
 
         case REGION_2B: //case 4 - [ -1, 0, 0;   -1, 0, -2;   1, 0,  0;], + [1; 1 ; 0;]
             {
-                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 1;
-                TransitionVector.Axis2 = ((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) + 1;
-                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0;
+                TransitionVector.Axis1 = ((    -2 * CounterRotatedRXZ1.Axis1) + (-1 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0;
+                TransitionVector.Axis2 = ((     0 * CounterRotatedRXZ1.Axis1) + (-1 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0;
+                TransitionVector.Axis3 = ((     0 * CounterRotatedRXZ1.Axis1) + ( 1 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 1;
 
                 break;
             }
         case REGION_3A: //case 5 - [ 1, 0, 0;   -1, 0, -2;   -1, 0, 0;], + [1; 3 ; 1;]/2
             {
-                TransitionVector.Axis1 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0.5;
-                TransitionVector.Axis2 = ((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) + 1.5;
-                TransitionVector.Axis3 = ((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0.5;
+                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ1.Axis1) + (2 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) - 0.5;
+                TransitionVector.Axis2 = ((    -1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
 
                 break;
             }
 
         case REGION_3B: //case 7 - [ 1, 0, 0;   1, 0, 2;   -1, 0, 0;], + [1; -1 ; 1;]/2
             {
-                TransitionVector.Axis1 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0.5;
-                TransitionVector.Axis2 = ((     1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 2 * CounterRotatedRXZ.Axis3)) - 0.5;
-                TransitionVector.Axis3 = ((    -1 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0.5;
+                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis2 = ((     1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ1.Axis1) + (2 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 1.5;
 
                 break;
             }
 
        case REGION_4A: //case 6 - [ 0, 0, 1;   2, 0, 1;   0, 0, -1;], + [1; -1 ; 1;]/2
            {
-                TransitionVector.Axis1 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) + 0.5;
-                TransitionVector.Axis2 = ((     2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) - 0.5;
-                TransitionVector.Axis3 = ((     0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) + 0.5;
+                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis2 = ((     1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ1.Axis1) + ( 2 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 1.5;
 
                 break;
            }
 
        case REGION_4B: //case 8 - [ 0, 0, 1;   -2, 0, -1;   0, 0, -1;], + [1; 3 ; 1;]/2
            {
-               TransitionVector.Axis1 = ((    0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + ( 1 * CounterRotatedRXZ.Axis3)) + 0.5;
-               TransitionVector.Axis2 = ((   -2 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) + 1.5;
-               TransitionVector.Axis3 = ((    0 * CounterRotatedRXZ.Axis1) + (0 * CounterRotatedRXZ.Axis2)  + (-1 * CounterRotatedRXZ.Axis3)) + 0.5;
+               TransitionVector.Axis1 = ((   -1 * CounterRotatedRXZ1.Axis1) + (-2 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) - 0.5;
+               TransitionVector.Axis2 = ((   -1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+               TransitionVector.Axis3 = ((    1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
 
                break;
            }
 
-       case REGION_5A: //case 9 - [ 0, -1, 0;   0, 1, 2;   0,  1, 0;], + [0; 0 ; 1;]
+       case REGION_5A: //case 9 - [ 0, 2, 0;   1, 1, -1;   0,  0, 0;], + [0; 0 ; 0;]
            {
-               TransitionVector.Axis1 = ((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0;
-               TransitionVector.Axis2 = ((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 2 * CounterRotatedRXZ.Axis3)) + 0;
-               TransitionVector.Axis3 = ((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 1;
+               TransitionVector.Axis1 = ((       0 * CounterRotatedRXZ1.Axis1) + (-1 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0;
+               TransitionVector.Axis2 = ((       0 * CounterRotatedRXZ1.Axis1) + ( 1 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 1;
+               TransitionVector.Axis3 = ((       1 * CounterRotatedRXZ1.Axis1) + ( 1 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 1;
 
                break;
            }
 
        case REGION_5B: //case 11 - [ 0, -1, 0;   0, -1, -2;   0,  1, 0;], + [0; 1 ; 1;]
            {
-               TransitionVector.Axis1 = ((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0;
-               TransitionVector.Axis2 = ((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) + 1;
-               TransitionVector.Axis3 = ((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 1;
+               TransitionVector.Axis1 = ((     -1 * CounterRotatedRXZ1.Axis1)   + (-1 * CounterRotatedRXZ1.Axis2)   + ( 0 * CounterRotatedRXZ1.Axis3)) + 0;
+               TransitionVector.Axis2 = ((      0 * CounterRotatedRXZ1.Axis1)   + (-1 * CounterRotatedRXZ1.Axis2)   + ( 0 * CounterRotatedRXZ1.Axis3)) + 0;
+               TransitionVector.Axis3 = ((      0 * CounterRotatedRXZ1.Axis1)   + ( 1 * CounterRotatedRXZ1.Axis2)   + ( 0 * CounterRotatedRXZ1.Axis3)) + 1;
 
                break;
            }
 
-       case REGION_6A: //case 10 - [ 0, -1, 0;   0, 1, 2;   0,  1, 0;], + [0; 1 ; 1;]
+       case REGION_6A: //case 10 - [ 0, 0, 0;   0.5, 0.5, -0.5;   0,  1, 0;], + [0.5; 0.5 ; 0.5;]
            {
-               TransitionVector.Axis1 = ((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0;
-               TransitionVector.Axis2 = ((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 2 * CounterRotatedRXZ.Axis3)) + 1;
-               TransitionVector.Axis3 = ((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 1;
+               TransitionVector.Axis1 = ((        0 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 1 * CounterRotatedRXZ1.Axis3)) + 0;
+               TransitionVector.Axis2 = ((       -1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + (-1 * CounterRotatedRXZ1.Axis3)) + 1;
+               TransitionVector.Axis3 = ((        0 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + (-1 * CounterRotatedRXZ1.Axis3)) + 1;
 
                break;
            }
 
        case REGION_6B: //case 12 - [ 0, -1, 0;   0, -1, -2;   0,  1, 0;], + [0; 0 ; 1;]
            {
-               TransitionVector.Axis1 = ((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 0;
-               TransitionVector.Axis2 = ((    0 * CounterRotatedRXZ.Axis1) + (-1 * CounterRotatedRXZ.Axis2)  + (-2 * CounterRotatedRXZ.Axis3)) + 0;
-               TransitionVector.Axis3 = ((    0 * CounterRotatedRXZ.Axis1) + ( 1 * CounterRotatedRXZ.Axis2)  + ( 0 * CounterRotatedRXZ.Axis3)) + 1;
+               TransitionVector.Axis1 = ((       0 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 1 * CounterRotatedRXZ1.Axis3)) + 0;
+               TransitionVector.Axis2 = ((       1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 1 * CounterRotatedRXZ1.Axis3)) + 0;
+               TransitionVector.Axis3 = ((       0 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + (-1 * CounterRotatedRXZ1.Axis3)) + 1;
 
                break;
            }
     }
+
 
 // test -1, otherwise 0
 #if 1
@@ -431,73 +481,61 @@ void CalculateTransitions()
 void RotateSpaceVectorRXZ()
 {
 
-    short RotationLookUpTableIndex;
-
-    short RotationLookUpTable [7][7] = {{0,0,0,0,0,0,0},
-                                      {0,1,2,6,3,5,4},
-                                      {0,2,3,1,4,6,5},
-                                      {0,3,4,2,5,1,6},
-                                      {0,4,5,3,6,2,1},
-                                      {0,5,6,4,1,3,2},
-                                      {0,6,1,5,2,4,3}
-                                     };
-
-    RotationLookUpTableIndex = RotationLookUpTable [SegmentID][Region];
-
-    switch (RotationLookUpTableIndex)
+    switch(SegmentID)
     {
 
-        case ABCtoACB: //case1 - [ 1, 0,  0;       0, 0, 1;      0, 1, 0;]
+        case _330to030: //case1 - [ 1, 0,  0;       0, 0, 1;      0, 1, 0;]
         {
-            SpaceVectorTransitionTime.Axis1 = ((  1 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 1 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionTimes.Axis1) + ( 1 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
+            SpaceVectorTransitionTime.Axis1 = TransitionTimes.Axis1;
+            SpaceVectorTransitionTime.Axis3 = TransitionTimes.Axis2;
+            SpaceVectorTransitionTime.Axis2 = TransitionTimes.Axis3;
+
+
 
             break;
         }
 
-        case ABCtoABC: //case2 - [ 1, 0,  0;       0, 1, 0;      0, 0, 1;]
+        case _030to090: //case2 - [ 1, 0,  0;       0, 1, 0;      0, 0, 1;]
         {
-            SpaceVectorTransitionTime.Axis1 = ((  1 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionTimes.Axis1) + ( 1 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 1 * TransitionTimes.Axis3));
+            SpaceVectorTransitionTime.Axis1 = TransitionTimes.Axis1;
+            SpaceVectorTransitionTime.Axis2 = TransitionTimes.Axis2;
+            SpaceVectorTransitionTime.Axis3 = TransitionTimes.Axis3;
 
             break;
         }
 
-        case ABCtoBAC: //case3 - [ 0, 1,  0;       1, 0, 0;      0, 0, 1;]
+        case _090to150: //case3 - [ 0, 1,  0;       1, 0, 0;      0, 0, 1;]
         {
-            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionTimes.Axis1) + ( 1 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis2 = ((  1 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 1 * TransitionTimes.Axis3));
+            SpaceVectorTransitionTime.Axis2 = TransitionTimes.Axis1;
+            SpaceVectorTransitionTime.Axis1 = TransitionTimes.Axis2;
+            SpaceVectorTransitionTime.Axis3 = TransitionTimes.Axis3;
+            break;
+        }
+
+        case _150to210: //case4 - [ 0, 0,  1;       1, 0, 0;      0, 1, 0;]
+        {
+            SpaceVectorTransitionTime.Axis2 = TransitionTimes.Axis1;
+            SpaceVectorTransitionTime.Axis3 = TransitionTimes.Axis2;
+            SpaceVectorTransitionTime.Axis1 = TransitionTimes.Axis3;
+
+
 
             break;
         }
 
-        case ABCtoCAB: //case4 - [ 0, 0,  1;       1, 0, 0;      0, 1, 0;]
+        case _210to270: //case5 - [ 0, 0,  1;       0, 1, 0;      1, 0, 0;]
         {
-            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 1 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis2 = ((  1 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis3 = ((  0 * TransitionTimes.Axis1) + ( 1 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-
+            SpaceVectorTransitionTime.Axis3 = TransitionTimes.Axis1;
+            SpaceVectorTransitionTime.Axis2 = TransitionTimes.Axis2;
+            SpaceVectorTransitionTime.Axis1 = TransitionTimes.Axis3;
             break;
         }
 
-        case ABCtoCBA: //case5 - [ 0, 0,  1;       0, 1, 0;      1, 0, 0;]
+        case _270to330: //case6 - [ 0, 1,  0;       0, 0, 1;      1, 0, 0;]
         {
-            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 1 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionTimes.Axis1) + ( 1 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis3 = ((  1 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-
-            break;
-        }
-
-        case ABCtoBCA: //case6 - [ 0, 1,  0;       0, 0, 1;      1, 0, 0;]
-        {
-            SpaceVectorTransitionTime.Axis1 = ((  0 * TransitionTimes.Axis1) + ( 1 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis2 = ((  0 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 1 * TransitionTimes.Axis3));
-            SpaceVectorTransitionTime.Axis3 = ((  1 * TransitionTimes.Axis1) + ( 0 * TransitionTimes.Axis2) + ( 0 * TransitionTimes.Axis3));
-
+            SpaceVectorTransitionTime.Axis3 = TransitionTimes.Axis1;
+            SpaceVectorTransitionTime.Axis1 = TransitionTimes.Axis2;
+            SpaceVectorTransitionTime.Axis2 = TransitionTimes.Axis3;
             break;
         }
 
@@ -542,35 +580,21 @@ void GenerateSpaceVectorRXZ()
         AngleValue = AngleValue + 1;
     }
 
+    if (AngleValue >= 0.5)
+    {
+        //GPIO_writePin(37,1);
+    }
+    else
+    {
+        //GPIO_writePin(37,0);
+    }
+
     //%RotationMatrixDQtoRXZ;
     SpaceVectorRXZ = VectDQZtoRXZ(SpaceVectorDQZ, AngleValue);
 
 }
 
-//
-/*******************************************************************************
-*//**
-* @brief Utility function to rotate a space vector by 30 degrees
-* @param SpaceVectorRXZ             - space vector in RXZ to be rotated by 30 deg
-* @retun SpaceVectorRXZ             - Space Vector with 30 deg rotation
-*
-* Source is mapped to Matlab Model
-* To be docuemnted
-*
-*
-*******************************************************************************/
-// [ sqrt(3)/2, -1/2,  0;       1/2, sqrt(3)/2, 0;      0, 0, 1;]
-//
-VECTOR RotateRXZby30Degree(VECTOR VectorRXZ)
-{
-    VECTOR tempVect;
 
-    tempVect.Axis1 =  ( ( SQRT3BY2 * VectorRXZ.Axis1) + (    -0.5 * VectorRXZ.Axis2) + (   0  * VectorRXZ.Axis3));
-    tempVect.Axis2 =  ( (      0.5 * VectorRXZ.Axis1) + (SQRT3BY2 * VectorRXZ.Axis2) + (   0  * VectorRXZ.Axis3));
-    tempVect.Axis3 =  ( (        0 * VectorRXZ.Axis1) + (       0 * VectorRXZ.Axis2) + (   1  * VectorRXZ.Axis3));
-
-    return tempVect;
-}
 
 //
 /*******************************************************************************
@@ -588,7 +612,12 @@ VECTOR RotateRXZby30Degree(VECTOR VectorRXZ)
 
 void ConvertRXZtoThreePhase()
 {
+
+    //Cosine
     SpaceVector3Phase = VectRXZtoABC(SpaceVectorRXZ);
+
+    //Sine
+    SpaceVector3FSin = VectRXZtoABCSin(SpaceVectorRXZ);
 
 }
 
@@ -700,353 +729,348 @@ short DetectSegment(VECTOR vect3Phase)
 void DetectSegmentnSegmentID(VECTOR vect3Phase)
 {
     switch(StateNum)
-       {
-           case  STATE_OFF: //0
-           {
-               if((AngleValue > 0) && (AngleValue < 0.05))
-               {
-                   StateNum = STATE_0TO30;
-                   Segment_s = 1;
-                   SegmentID_s = 1;
-                   /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
-                   PWMEnable.Lower_Phase_A_PWM_Enable = 0;
-                   PWMEnable.Upper_Phase_B_PWM_Enable = 0;
-                   PWMEnable.Lower_Phase_B_PWM_Enable = 1;
-                   PWMEnable.Upper_Phase_C_PWM_Enable = 0;
-                   PWMEnable.Lower_Phase_C_PWM_Enable = 1;*/
+    {
+        case  STATE_OFF: //0
+        {
+            if((AngleValue > 0) && (AngleValue < 0.05) & (InverterState == ON))
+            {
+                StateNum = STATE_0TO30;
+                Segment_s = 1;
+                SegmentID_s = 1;
+                /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
+                PWMEnable.Lower_Phase_A_PWM_Enable = 0;
+                PWMEnable.Upper_Phase_B_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_B_PWM_Enable = 1;
+                PWMEnable.Upper_Phase_C_PWM_Enable = 0;
+                PWMEnable.Lower_Phase_C_PWM_Enable = 1;*/
 
-                   EALLOW;
+                EALLOW;
 
-                   EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable  - TP28
-                   EPwm11Regs.AQCSFRC.bit.CSFA = 0; // Lower Phase A Channel A Enable  - TP34
-                   EPwm10Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase B Channel A Enable  - TP29
-                   EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable  - TP32
-                   EPwm8Regs.AQCSFRC.bit.CSFA = 0;  // Upper Phase C Channel A Enable  - TP30
-                   EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable  - TP33
-
-
-                   EPwm12Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase A Channel B Enable  - TP25
-                   EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable - TP31
-                   EPwm10Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase B Channel B Disable - TP26
-                   EPwm9Regs.AQCSFRC.bit.CSFB = 0;   // Lower Phase B Channel B Enable  - TP35
-                   EPwm8Regs.AQCSFRC.bit.CSFB = 1;   // Upper Phase C Channel B Disable - TP27
-                   EPwm7Regs.AQCSFRC.bit.CSFB = 0;   // Lower Phase C Channel B Enable  - TP36
-
-                   EDIS;
-
-               }
-               break;
-           }
-           case STATE_0TO30: //1
-           {
-               if(vect3Phase.Axis2 > 0)
-               {
-                   StateNum = STATE_30TO60;
-                   SegmentID_s = 2;
-                   //PWMEnable.Upper_Phase_B_PWM_Enable = 1;
-                   //PWMEnable.Lower_Phase_B_PWM_Enable = 0;
+                EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable  - TP28
+                EPwm11Regs.AQCSFRC.bit.CSFA = 0; // Lower Phase A Channel A Enable  - TP34
+                EPwm10Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase B Channel A Enable  - TP29
+                EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable  - TP35
+                EPwm8Regs.AQCSFRC.bit.CSFA = 0;  // Upper Phase C Channel A Enable  - TP30
+                EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable  - TP36
 
 
-                   EALLOW;
+                EPwm12Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase A Channel B Enable  - TP25
+                EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable - TP31
+                EPwm10Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase B Channel B Disable - TP26
+                EPwm9Regs.AQCSFRC.bit.CSFB = 0;   // Lower Phase B Channel B Enable  - TP32
+                EPwm8Regs.AQCSFRC.bit.CSFB = 1;   // Upper Phase C Channel B Disable - TP27
+                EPwm7Regs.AQCSFRC.bit.CSFB = 0;   // Lower Phase C Channel B Enable  - TP33
 
-                   EPwm10Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase B Channel B Enable
-                   //EPwm10Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase B Channel A Enable
+                EDIS;
+            }
 
-                   //EPwm9Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase B Channel A Disable
-                   EPwm9Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase B Channel B Disable
+            //pdpu_Disable_All_Phases();
 
-                   EDIS;
-               }
-               else if(vect3Phase.Axis2 < vect3Phase.Axis3)
-               {
-                   StateNum = STATE_330TO360;
-                   Segment_s = 6;
-               }
-               break;
-           }
-           case STATE_30TO60: //2
-           {
-               if(vect3Phase.Axis2 > vect3Phase.Axis1)
-               {
-                   StateNum = STATE_60TO90;
-                   Segment_s = 2;
-               }
-               else if(vect3Phase.Axis2 < 0)
-               {
-                   StateNum = STATE_0TO30;
-                   SegmentID_s = 1;
-                   /*PWMEnable.Upper_Phase_B_PWM_Enable = 0;
-                   PWMEnable.Lower_Phase_B_PWM_Enable = 1;*/
+            break;
+        }
+        case STATE_0TO30: //1
+        {
 
-                   EALLOW;
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis1 > SpaceVector3FSin.Axis3)
+                {
+                    StateNum = STATE_30TO60;
+                    SegmentID_s = 2;
 
-                   EPwm10Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase B Channel B Disable
-                   //EPwm10Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase B Channel A Disable
+                    pdpu_Enable_Phase_B_UpperChannel_B();
+                }
 
-                   //EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable
-                   EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable
-                   EDIS;
+                else if(SpaceVector3FSin.Axis1 < 0)
+                {
+                    StateNum = STATE_330TO360;
+                    Segment_s = 6;
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-               }
-               break;
-           }
-           case STATE_60TO90: //3
-           {
-               if(vect3Phase.Axis1 < 0)
-               {
-                   StateNum = STATE_90TO120;
-                   SegmentID_s = 3;
-                   /*PWMEnable.Upper_Phase_A_PWM_Enable = 0;
-                   PWMEnable.Lower_Phase_A_PWM_Enable = 1;*/
+            break;
+        }
+        case STATE_30TO60: //2
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis3 < 0)
+                {
+                    StateNum = STATE_60TO90;
+                    Segment_s = 2;
+                }
+                else if(SpaceVector3FSin.Axis1 < SpaceVector3FSin.Axis3)
+                {
+                    StateNum = STATE_0TO30;
+                    SegmentID_s = 1;
 
-                   EALLOW;
+                    pdpu_Enable_Phase_B_LowerChannel_B();
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   EPwm12Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase A Channel B Disable
-                   //EPwm12Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase A Channel A Disable
+            break;
+        }
+        case STATE_60TO90: //3
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis3 < SpaceVector3FSin.Axis2)
+                {
+                    StateNum = STATE_90TO120;
+                    SegmentID_s = 3;
 
-                   //EPwm11Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase A Channel A Enable
-                   EPwm11Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase A Channel B Enable
+                    pdpu_Enable_Phase_A_LowerChannel_B();
 
-                   EDIS;
-               }
-               else if(vect3Phase.Axis2 < vect3Phase.Axis1)
-               {
-                   StateNum = STATE_30TO60;
-                   Segment_s = 1;
-               }
-               break;
-           }
-           case STATE_90TO120: //4
-           {
-               if(vect3Phase.Axis1 < vect3Phase.Axis3)
-               {
-                   StateNum = STATE_120TO150;
-                   Segment_s = 3;
-               }
-               else if(vect3Phase.Axis1 > 0)
-               {
-                   StateNum = STATE_60TO90;
-                   SegmentID_s = 2;
-                   /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
-                   PWMEnable.Lower_Phase_A_PWM_Enable = 0;*/
+                }
+                else if(SpaceVector3FSin.Axis3 > 0)
+                {
+                    StateNum = STATE_30TO60;
+                    Segment_s = 1;
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
+            break;
+        }
+        case STATE_90TO120: //4
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis2 > 0)
+                {
+                    StateNum = STATE_120TO150;
+                    Segment_s = 3;
 
-                   EALLOW;
-                   EPwm12Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase A Channel B Enable
-                   //EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable
+                }
+                else if(SpaceVector3FSin.Axis2 < SpaceVector3FSin.Axis3)
+                {
+                    StateNum = STATE_60TO90;
+                    SegmentID_s = 2;
 
-                   //EPwm11Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase A Channel A Disable
-                   EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable
-                   EDIS;
+                    pdpu_Enable_Phase_A_UpperChannel_B();
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-               }
-               break;
-           }
-           case STATE_120TO150: //5
-           {
-               if(vect3Phase.Axis3 > 0)
-               {
-                   StateNum = STATE_150TO180;
-                   SegmentID_s = 4;
-                   /*PWMEnable.Upper_Phase_C_PWM_Enable = 1;
-                   PWMEnable.Lower_Phase_C_PWM_Enable = 0;*/
+            break;
+        }
+        case STATE_120TO150: //5
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis2 > SpaceVector3FSin.Axis1)
+                {
+                    StateNum = STATE_150TO180;
+                    SegmentID_s = 4;
 
-                   EALLOW;
-                   EPwm8Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase C Channel B Enable
-                   //EPwm8Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase C Channel A Enable
+                    pdpu_Enable_Phase_C_UpperChannel_B();
 
-                   //EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable
-                   EPwm7Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase C Channel B Disable
-                   EDIS;
+                }
+                else if(SpaceVector3FSin.Axis2 < 0)
+                {
+                    StateNum = STATE_90TO120;
+                    Segment_s = 2;
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-               }
-               else if(vect3Phase.Axis1 > vect3Phase.Axis3)
-               {
-                   StateNum = STATE_90TO120;
-                   Segment_s = 2;
-               }
-               break;
-           }
-           case STATE_150TO180: //6
-           {
-               if(vect3Phase.Axis3 > vect3Phase.Axis2)
-               {
-                   StateNum = STATE_180TO210;
-                   Segment_s = 4;
+            break;
+        }
+        case STATE_150TO180: //6
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis1 < 0)
+                {
+                    StateNum = STATE_180TO210;
+                    Segment_s = 4;
 
-                  // GPIO_writePin(37,0);
-               }
-               else if(vect3Phase.Axis3 < 0)
-               {
-                   StateNum = STATE_120TO150;
-                   SegmentID_s = 3;
-                   /*PWMEnable.Upper_Phase_C_PWM_Enable = 0;
-                   PWMEnable.Lower_Phase_C_PWM_Enable = 1;*/
+                }
+                else if(SpaceVector3FSin.Axis2 < SpaceVector3FSin.Axis1)
+                {
+                    StateNum = STATE_120TO150;
+                    SegmentID_s = 3;
 
-                   EALLOW;
-                   EPwm8Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase C Channel B Disable
-                   //EPwm8Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase C Channel A Disable
+                    pdpu_Enable_Phase_C_LowerChannel_B();
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   //EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable
-                   EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable
-                   EDIS;
-               }
-               break;
-           }
-           case STATE_180TO210: //7
-           {
-               if(vect3Phase.Axis2 < 0)
-               {
-                   StateNum = STATE_210TO240;
-                   SegmentID_s = 5;
-                   /*PWMEnable.Upper_Phase_B_PWM_Enable = 0;
-                   PWMEnable.Lower_Phase_B_PWM_Enable = 1;*/
+            break;
+        }
+        case STATE_180TO210: //7
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis1 < SpaceVector3FSin.Axis3)
+                {
+                    StateNum = STATE_210TO240;
+                    SegmentID_s = 5;
 
-                   EALLOW;
+                    pdpu_Enable_Phase_B_LowerChannel_B();
 
-                   EPwm10Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase B Channel B Disable
-                   //EPwm10Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase B Channel A Disable
+                }
+                else if(SpaceVector3FSin.Axis1 > 0)
+                {
+                    StateNum = STATE_150TO180;
+                    Segment_s = 3;
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   //EPwm9Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase B Channel A Enable
-                   EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable
-                   EDIS;
-               }
-               else if(vect3Phase.Axis3 < vect3Phase.Axis2)
-               {
-                   StateNum = STATE_150TO180;
-                   Segment_s = 3;
-               }
-               break;
-           }
-           case STATE_210TO240: //8
-           {
-               if(vect3Phase.Axis1 > vect3Phase.Axis2)
-               {
-                   StateNum = STATE_240TO270;
-                   Segment_s = 5;
-               }
-               else if(vect3Phase.Axis2 > 0)
-               {
-                   StateNum = STATE_180TO210;
-                   SegmentID_s = 4;
-                   /*PWMEnable.Upper_Phase_B_PWM_Enable = 1;
-                   PWMEnable.Lower_Phase_B_PWM_Enable = 0;*/
+            break;
+        }
+        case STATE_210TO240: //8
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis3 > 0)
+                {
+                    StateNum = STATE_240TO270;
+                    Segment_s = 5;
+                }
+                else if(SpaceVector3FSin.Axis1 > SpaceVector3FSin.Axis3)
+                {
+                    StateNum = STATE_180TO210;
+                    SegmentID_s = 4;
 
-                   EALLOW;
+                    pdpu_Enable_Phase_B_UpperChannel_B();
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   EPwm10Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase B Channel B Enable
-                   //EPwm10Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase B Channel A Enable
+            break;
+        }
+        case STATE_240TO270: //9
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis3 > SpaceVector3FSin.Axis2)
+                {
+                    StateNum = STATE_270TO300;
+                    SegmentID_s = 6;
 
-                   //EPwm9Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase B Channel A Disable
-                   EPwm9Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase B Channel B Disable
-                   EDIS;
-               }
-               break;
-           }
-           case STATE_240TO270: //9
-           {
-               if(vect3Phase.Axis1 > 0)
-               {
-                   StateNum = STATE_270TO300;
-                   SegmentID_s = 6;
-                   /*PWMEnable.Upper_Phase_A_PWM_Enable = 1;
-                   PWMEnable.Lower_Phase_A_PWM_Enable = 0;*/
+                    pdpu_Enable_Phase_A_UpperChannel_B();
 
-                   EALLOW;
-                   EPwm12Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase A Channel B Enable
-                   //EPwm12Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase A Channel A Enable
+                }
+                else if(SpaceVector3FSin.Axis3 < 0)
+                {
+                    StateNum = STATE_210TO240;
+                    Segment_s = 4;
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   //EPwm11Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase A Channel A Disable
-                   EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable
-                   EDIS;
+            break;
+        }
+        case STATE_270TO300: //10
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis2 < 0)
+                {
+                    StateNum = STATE_300TO330;
+                    Segment_s = 6;
+                }
 
-               }
-               else if(vect3Phase.Axis1 < vect3Phase.Axis2)
-               {
-                   StateNum = STATE_210TO240;
-                   Segment_s = 4;
-               }
-               break;
-           }
-           case STATE_270TO300: //10
-           {
-               if(vect3Phase.Axis1 > vect3Phase.Axis3)
-               {
-                   StateNum = STATE_300TO330;
-                   Segment_s = 6;
-               }
-               else if(vect3Phase.Axis1 < 0)
-               {
-                   StateNum = STATE_240TO270;
-                   SegmentID_s = 5;
-                   //PWMEnable.Upper_Phase_A_PWM_Enable = 0;
-                   //PWMEnable.Lower_Phase_A_PWM_Enable = 1;
+                else if(SpaceVector3FSin.Axis3 < SpaceVector3FSin.Axis2)
+                {
+                    StateNum = STATE_240TO270;
+                    SegmentID_s = 5;
 
-                   EALLOW;
-                   EPwm12Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase A Channel B Disable
-                   //EPwm12Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase A Channel A Disable
+                    pdpu_Enable_Phase_A_LowerChannel_B();
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   //EPwm11Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase A Channel A Enable
-                   EPwm11Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase A Channel B Enable
-                   EDIS;
-               }
-               break;
-           }
-           case STATE_300TO330: //11
-           {
-               if(vect3Phase.Axis3 < 0)
-               {
-                   StateNum = STATE_330TO360;
-                   SegmentID_s = 1;
-                   //PWMEnable.Upper_Phase_C_PWM_Enable = 0;
-                   //PWMEnable.Lower_Phase_C_PWM_Enable = 1;
+            break;
+        }
+        case STATE_300TO330: //11
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis2 < SpaceVector3FSin.Axis1)
+                {
+                    StateNum = STATE_330TO360;
+                    SegmentID_s = 1;
 
-                   EALLOW;
-                   EPwm8Regs.AQCSFRC.bit.CSFB = 1; // Upper Phase C Channel B Disable
-                   //EPwm8Regs.AQCSFRC.bit.CSFA = 1; // Upper Phase C Channel A Disable
+                    pdpu_Enable_Phase_C_LowerChannel_B();
 
-                   //EPwm7Regs.AQCSFRC.bit.CSFA = 0;  // Lower Phase C Channel A Enable
-                   EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable
-                   EDIS;
+                }
+                else if(SpaceVector3FSin.Axis2 > 0)
+                {
+                    StateNum = STATE_270TO300;
+                    Segment_s = 5;
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-               }
-               else if(vect3Phase.Axis1 < vect3Phase.Axis3)
-               {
-                   StateNum = STATE_270TO300;
-                   Segment_s = 5;
-               }
-               break;
-           }
-           case STATE_330TO360: //12
-           {
-               if(vect3Phase.Axis2 > vect3Phase.Axis3)
-               {
-                   StateNum = STATE_0TO30;
-                   Segment_s = 1;
+            break;
+        }
+        case STATE_330TO360: //12
+        {
+            if(InverterState == ON)
+            {
+                if(SpaceVector3FSin.Axis1 > 0)
+                {
+                    StateNum = STATE_0TO30;
+                    Segment_s = 1;
 
-                  // GPIO_writePin(37,1);
-               }
-               else if(vect3Phase.Axis3 > 0)
-               {
-                   StateNum = STATE_300TO330;
-                   SegmentID_s = 6;
-                   //PWMEnable.Upper_Phase_C_PWM_Enable = 1;
-                   //PWMEnable.Lower_Phase_C_PWM_Enable = 0;
+                }
+                else if(SpaceVector3FSin.Axis2 > SpaceVector3FSin.Axis1)
+                {
+                    StateNum = STATE_300TO330;
+                    SegmentID_s = 6;
 
-                   EALLOW;
-                   EPwm8Regs.AQCSFRC.bit.CSFB = 0; // Upper Phase C Channel B Enable
-                   //EPwm8Regs.AQCSFRC.bit.CSFA = 0; // Upper Phase C Channel A Enable
+                    pdpu_Enable_Phase_C_UpperChannel_B();
+                }
+            }
+            else if(InverterState == OFF)
+            {
+                StateNum = STATE_OFF;
+            }
 
-                   //EPwm7Regs.AQCSFRC.bit.CSFA = 1;  // Lower Phase C Channel A Disable
-                   EPwm7Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase C Channel B Disable
-                   EDIS;
-               }
-               break;
-           }
-           default:
-           {
-               break;
-           }
-       }
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
 }
 
 //
@@ -1067,79 +1091,23 @@ void DetectSegmentnSegmentID(VECTOR vect3Phase)
 void DetectRegion()
 {
     short Region_t = 0;;
-    VECTOR tempVectRXZ, tempVect3Ph;
+    VECTOR tempVectRXZ, tempVect3Ph, New_CounterRotatedRXZ1;
 
-    switch (SegmentID)
-    {
-        case _0TO60: //0 deg rotation
-            {
-                tempVectRXZ.Axis1 =  ( (1 * SpaceVectorRXZ.Axis1) + (0     * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis2 =  ( (0 * SpaceVectorRXZ.Axis1) + (1     * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis3 =  ( (0 * SpaceVectorRXZ.Axis1) + (0     * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
 
-                break;
-            }
+    New_CounterRotatedRXZ1.Axis1 = ((         0 * CounterRotatedRXZ.Axis1) + (         -1 * CounterRotatedRXZ.Axis2)  + (          1 * CounterRotatedRXZ.Axis3)) * 0.5;
+    New_CounterRotatedRXZ1.Axis2 = ((TWOBYSQRT3 * CounterRotatedRXZ.Axis1) + (-ONEBYSQRT3 * CounterRotatedRXZ.Axis2)  + (-ONEBYSQRT3 * CounterRotatedRXZ.Axis3)) * 0.5;
+    New_CounterRotatedRXZ1.Axis3 = ((         0 * CounterRotatedRXZ.Axis1) + (          0 * CounterRotatedRXZ.Axis2)  + (          0 * CounterRotatedRXZ.Axis3)) * 0.5;
 
-        case _60TO120: //0 to -60 deg rotation
-            {
-                tempVectRXZ.Axis1 =  ( (       0.5 * SpaceVectorRXZ.Axis1) + ( SQRT3BY2  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis2 =  ( ( -SQRT3BY2 * SpaceVectorRXZ.Axis1) + (      0.5  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis3 =  ( (         0 * SpaceVectorRXZ.Axis1) + (        0  * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
-
-                break;
-            }
-        case _120TO180: //0 to -120 deg rotation
-            {
-                tempVectRXZ.Axis1 =  ( (      -0.5 * SpaceVectorRXZ.Axis1) + ( SQRT3BY2  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis2 =  ( ( -SQRT3BY2 * SpaceVectorRXZ.Axis1) + (     -0.5  * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis3 =  ( (         0 * SpaceVectorRXZ.Axis1) + (        0  * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
-
-                break;
-            }
-
-        case _180TO240: //0 to -180 deg rotation
-            {
-                tempVectRXZ.Axis1 =  ( (      -1 * SpaceVectorRXZ.Axis1) + (        0    * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis2 =  ( (       0 * SpaceVectorRXZ.Axis1) + (       -1    * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis3 =  ( (       0 * SpaceVectorRXZ.Axis1) + (        0    * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
-
-                break;
-            }
-
-        case _240TO300: //0 to -240 deg rotation
-            {
-                tempVectRXZ.Axis1 =  ( (     -0.5 * SpaceVectorRXZ.Axis1) + (  -SQRT3BY2 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis2 =  ( ( SQRT3BY2 * SpaceVectorRXZ.Axis1) + (       -0.5 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis3 =  ( (        0 * SpaceVectorRXZ.Axis1) + (          0 * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
-
-                break;
-            }
-
-        case _300TO360: //0 to -300 deg rotation
-            {
-                tempVectRXZ.Axis1 =  ( (      0.5 * SpaceVectorRXZ.Axis1) + (   -SQRT3BY2 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis2 =  ( ( SQRT3BY2 * SpaceVectorRXZ.Axis1) + (         0.5 * SpaceVectorRXZ.Axis2) + (   0  * SpaceVectorRXZ.Axis3));
-                tempVectRXZ.Axis3 =  ( (        0 * SpaceVectorRXZ.Axis1) + (           0 * SpaceVectorRXZ.Axis2) + (   1  * SpaceVectorRXZ.Axis3));
-
-                break;
-            }
-        default:
-            {
-                tempVectRXZ.Axis1 = 0;
-                tempVectRXZ.Axis2 = 0;
-                tempVectRXZ.Axis3 = 0;
-
-                break;
-            }
-    }
 
     // subtract [1/2;0;0]
-    tempVectRXZ.Axis1 = tempVectRXZ.Axis1 - 0.5;
-    tempVectRXZ.Axis2 = tempVectRXZ.Axis2 - 0;
-    tempVectRXZ.Axis3 = tempVectRXZ.Axis3 - 0;
+    tempVectRXZ.Axis1 = New_CounterRotatedRXZ1.Axis1 - 0.5;
+    tempVectRXZ.Axis2 = New_CounterRotatedRXZ1.Axis2;
+    tempVectRXZ.Axis3 = New_CounterRotatedRXZ1.Axis3;
+
 
     //Convert RXZ to 3 Phase vector
     tempVect3Ph = VectRXZtoABC(tempVectRXZ);
+
 
     if ( tempVect3Ph.Axis1 >=  tempVect3Ph.Axis2)
         {

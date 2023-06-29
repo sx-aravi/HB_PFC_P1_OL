@@ -39,9 +39,9 @@ extern "C" {
 #define INV2PI            0.159154943
 #define TWOPI             6.283
 
-//For 50 KHz
+//#define TBASE             0.01
+// For 50 KHz
 //#define TBASE             0.00002
-
 //For 100 Khz
 #define TBASE           0.00001
 
@@ -66,6 +66,10 @@ extern VECTOR SpaceVector3Phase;
 extern VECTOR SpaceVectorTransitionTime;
 extern VECTOR SVMOutputTimes;
 
+// CCS Scope Buffers
+//extern float GraphFloatBuffer[50];
+//extern uint16_t GraphIntBuffer[3][50];
+
 //
 // Function Prototypes
 //
@@ -80,6 +84,19 @@ void RotateSpaceVectorRXZ();
 VECTOR RotateRXZby30Degree(VECTOR);
 void ConvertRXZtoThreePhase();
 void ConvertRotatedRXZtoThreePhase(VECTOR);
+
+// Variables for external control via CAN
+extern short InverterState;
+extern short GpioFaultResetBit;
+extern short GpioEnableBit;
+
+typedef enum
+{
+    OFF,
+    ON,
+    UNKNOWN
+}INVERTER_STATE;
+
 
 
 #ifdef __cplusplus

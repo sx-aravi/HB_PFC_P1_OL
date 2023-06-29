@@ -70,6 +70,132 @@ void ddi_ConfigureGPIOs()
     GPIO_setDirectionMode(37, GPIO_DIR_MODE_OUT);
     GPIO_setControllerCore(37, GPIO_CORE_CPU1);
 
+
+    //
+    // GPIO 40 configuration for debugging internal software variables
+    //
+
+    GPIO_setPinConfig(GPIO_40_GPIO40);
+    GPIO_setPadConfig(40, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(40, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(40, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(40, GPIO_CORE_CPU1);
+
+
+    //
+    // GPIO 32 configuration for FLT_reset command output
+    //
+
+    GPIO_setPinConfig(GPIO_32_GPIO32);
+    GPIO_setPadConfig(32, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(32, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(32, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(32, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 29 configuration for DSPEN command output
+    //
+
+    GPIO_setPinConfig(GPIO_29_GPIO29);
+    GPIO_setPadConfig(29, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(29, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(29, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(29, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 34 configuration for /vDCFT input coming from auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_34_GPIO34);
+    GPIO_setPadConfig(34, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(34, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(34, GPIO_DIR_MODE_IN);
+    GPIO_setControllerCore(34, GPIO_CORE_CPU1);
+
+
+    //
+    // GPIO 35 configuration for /iDCFT input coming from auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_35_GPIO35);
+    GPIO_setPadConfig(35, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(35, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(35, GPIO_DIR_MODE_IN);
+    GPIO_setControllerCore(35, GPIO_CORE_CPU1);
+
+
+    //
+    // GPIO 33 configuration for /TMPFT input coming from auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_33_GPIO33);
+    GPIO_setPadConfig(33, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(33, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(33, GPIO_DIR_MODE_IN);
+    GPIO_setControllerCore(33, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 41 configuration for IO41 output
+    //
+
+    GPIO_setPinConfig(GPIO_41_GPIO41);
+    GPIO_setPadConfig(41, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(41, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(41, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(41, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 48 configuration for IO48 output
+    //
+
+    GPIO_setPinConfig(GPIO_48_GPIO48);
+    GPIO_setPadConfig(48, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(48, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(48, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(48, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 99 configuration for FLT_reset output to auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_99_GPIO99);
+    GPIO_setPadConfig(99, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(99, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(99, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(99, GPIO_CORE_CPU1);
+
+
+    //
+    // GPIO 63 configuration for /vPHFT input coming from auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_63_GPIO63);
+    GPIO_setPadConfig(63, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(63, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(63, GPIO_DIR_MODE_IN);
+    GPIO_setControllerCore(63, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 54 configuration for /iFLT input coming from auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_54_GPIO54);
+    GPIO_setPadConfig(54, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(54, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(54, GPIO_DIR_MODE_IN);
+    GPIO_setControllerCore(54, GPIO_CORE_CPU1);
+
+    //
+    // GPIO 28 configuration for /FLT1n output to auxiliary/power board
+    //
+
+    GPIO_setPinConfig(GPIO_28_GPIO28);
+    GPIO_setPadConfig(28, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(28, GPIO_QUAL_SYNC);
+    GPIO_setDirectionMode(28, GPIO_DIR_MODE_OUT);
+    GPIO_setControllerCore(28, GPIO_CORE_CPU1);
+
+
 }
 
 

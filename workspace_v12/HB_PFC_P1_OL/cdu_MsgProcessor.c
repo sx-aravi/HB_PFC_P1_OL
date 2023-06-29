@@ -31,86 +31,107 @@ uint16_t EOM = 0;
 
 void cdu_ProcessDiagnoticMsgs()
 {
-    uint16_t i;
 
     ddi_ReadCanMessage();
 
-    if(CanRxMsgData[0] == 0x23)
+    // Inverter ON/OFF command
+    if (CanRxMsgData[0] == 0x1)
     {
-        SOM = 1;
-        EOM = 0;
+        InverterState = ON;
+        GpioFaultResetBit = 1;
+        GpioEnableBit= 1;
+        GPIO_writePin(32,1);
+        GPIO_writePin(29,1);
+
     }
-    if(CanRxMsgData[7] == 0x24)
+    else if(CanRxMsgData[0] == 0x0)
     {
-            SOM = 0;
-            EOM = 1;
+        InverterState = OFF;
+        GpioFaultResetBit = 0;
+        GpioEnableBit= 0;
+        GPIO_writePin(32,0);
+        GPIO_writePin(29,0);
+
     }
 
-
-    for (i=1; i< 7; i++)
+    switch(CanRxMsgData[1])
     {
+        case 0x0:
+            // Overwrite space vector amplitude values
+            SpaceVectorDQZ.Axis1 = 0;
+            SpaceVectorDQZ.Axis2 = 0.866;
+            SpaceVectorDQZ.Axis3 = 0;
+            break;
 
-        switch (CanRxMsgData[i])
+        case 0x1:
+            // Overwrite space vector amplitude values
+            SpaceVectorDQZ.Axis1 = 0;
+            SpaceVectorDQZ.Axis2 = 0.75;
+            SpaceVectorDQZ.Axis3 = 0;
+            break;
+
+        case 0x2:
+            // Overwrite space vector amplitude values
+            SpaceVectorDQZ.Axis1 = 0;
+            SpaceVectorDQZ.Axis2 = 0.50;
+            SpaceVectorDQZ.Axis3 = 0;
+            break;
+
+        case 0x3:
+            // Overwrite space vector amplitude values
+            SpaceVectorDQZ.Axis1 = 0;
+            SpaceVectorDQZ.Axis2 = 0.433;
+            SpaceVectorDQZ.Axis3 = 0;
+            break;
+
+        case 0x4:
+            // Overwrite space vector amplitude values
+            SpaceVectorDQZ.Axis1 = 0;
+            SpaceVectorDQZ.Axis2 = 0.25;
+            SpaceVectorDQZ.Axis3 = 0;
+            break;
+
+        case 0x5:
+            // Overwrite space vector amplitude values
+            SpaceVectorDQZ.Axis1 = 0;
+            SpaceVectorDQZ.Axis2 = 0.217;
+            SpaceVectorDQZ.Axis3 = 0;
+            break;
+
+        default:
+            break;
+     }
+
+    switch(CanRxMsgData[2])
         {
-            // OBJECT OVERWRITE: SVM Object Data
-            case 0x21:
-                if(SOM == 1)
-                {
-                    // Overwrite space vector amplitude and velocity vector values.
-                    SpaceVectorDQZ.Axis1 = 0;
-                    SpaceVectorDQZ.Axis2 = 0.75;
-                    SpaceVectorDQZ.Axis3 = 0;
-                    WrDQZ = 60 ;
-                }
+            case 0x0:
+                // Overwrite velocity vector value
+                WrDQZ = 60;
                 break;
 
-            // OBJECT OVERWRITE: SVM Object Data
-            case 0x22:
-                if(SOM == 1)
-                {
-                    // Overwrite space vector amplitude and velocity vector values.
-                    SpaceVectorDQZ.Axis1 = 0;
-                    SpaceVectorDQZ.Axis2 = 0.50;
-                    SpaceVectorDQZ.Axis3 = 0;
-                    WrDQZ = 60 ;
-                }
+            case 0x1:
+                // Overwrite velocity vector value
+                WrDQZ = 100;
                 break;
 
-            // OBJECT OVERWRITE: SVM Object Data
-            case 0x25:
-                if(SOM == 1)
-                {
-                    // Overwrite space vector amplitude and velocity vector values.
-                    SpaceVectorDQZ.Axis1 = 0;
-                    SpaceVectorDQZ.Axis2 = 0.25;
-                    SpaceVectorDQZ.Axis3 = 0;
-                    WrDQZ = 60 ;
-                }
+            case 0x2:
+                // Overwrite velocity vector value
+                WrDQZ = 200;
                 break;
 
-            // OBJECT READ: SVM Object Data
-            case 0x02:
-                if(SOM == 1)
-                {
-                    // Prepare TxMsg data with SVM Object data
-                    CanTxMsgData[0] = 0x23;
-                    CanTxMsgData[1] = 0x23;
-                    CanTxMsgData[2] = SvmProfilerObject.pmu_AngleValue;
-                    CanTxMsgData[3] = SvmProfilerObject.pmu_WrDQZ;
-                    CanTxMsgData[4] = SvmProfilerObject.pmu_SpaceVectorDQZ.Axis1;
-                    CanTxMsgData[5] = SvmProfilerObject.pmu_SpaceVectorDQZ.Axis2;
-                    CanTxMsgData[6] = SvmProfilerObject.pmu_SpaceVectorDQZ.Axis3;
-                    CanTxMsgData[7] = 0x24;
-                }
+            case 0x3:
+                // Overwrite velocity vector value
+                WrDQZ = 500;
                 break;
 
-            // default condition to exit
+            case 0x4:
+                // Overwrite velocity vector value
+                WrDQZ = 1000;
+                break;
+
             default:
                 break;
-        }
-    }
-
+         }
 }
 
-
-
+// end of file
