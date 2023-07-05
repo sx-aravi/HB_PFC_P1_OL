@@ -59,11 +59,11 @@ void SYNC_init()
 	//
 	// SOCA
 	//
-	SysCtl_enableExtADCSOCSource(0);
+	//SysCtl_enableExtADCSOCSource(0);
 	//
 	// SOCB
 	//
-	SysCtl_enableExtADCSOCSource(0);
+	//SysCtl_enableExtADCSOCSource(0);
 }
 
 

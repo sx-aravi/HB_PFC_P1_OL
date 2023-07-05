@@ -53,5 +53,19 @@ extern void ddi_ConfigureADCs();
 extern void ddi_InitializeADCs();
 void ddi_SetupADCContinuousMode();
 
+void ddi_InitializeADCA();
+
+void ddi_InitializeSOC0_ADCA(short channel);
+void ddi_InitializeSOC1_ADCA(short channel);
+void ddi_InitializeSOC2_ADCA(short channel);
+void ddi_InitializeSOC3_ADCA(short channel);
+void ddi_InitializeSOC4_ADCA(short channel);
+void ddi_InitializeSOC5_ADCA(short channel);
+void ddi_InitializeSOC6_ADCA(short channel);
+void ddi_InitializeSOC7_ADCA(short channel);
+void ddi_InitializeSOC8_ADCA(short channel);
+
+void ddi_InitializeSOC0_ADCB(short channel);
+
 
 #endif /* DDI_ADC_H_ */

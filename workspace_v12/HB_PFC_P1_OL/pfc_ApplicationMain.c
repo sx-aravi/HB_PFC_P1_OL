@@ -65,7 +65,9 @@
 __interrupt void epwm12ISR(void);
 
 
+uint16_t ADCINA4_Val =0;
 uint16_t ADCINA5_Val =0;
+
 
 
 //
@@ -89,6 +91,7 @@ DLOG_4CH_F dlog_4ch1;
 // Main
 //
 void main(void)
+
 
 {
 
@@ -183,35 +186,67 @@ void main(void)
     GPIO_writePin(32,0);
     GPIO_writePin(29,0);
 
-
-    for(;;)
-    {
-        cdu_ProcessDiagnoticMsgs();
-        pmu_SynchronizeProfilerObjects();
-
-        //Read /vDCFT, /iDCFT, /TMPFT, /vPHFT and /iFLT faults from inverter hardware and disable the inverter
-        /*if((GPIO_readPin(33) == 1) | (GPIO_readPin(34) == 1) | (GPIO_readPin(35) == 1) |(GPIO_readPin(63) == 1))
+    //
+    // take conversions indefinitely in loop
+    //
+        while(1)
         {
-            InverterState = OFF;
-        }*/
+
+            cdu_ProcessDiagnoticMsgs();
+            pmu_SynchronizeProfilerObjects();
 
 
 
-        //
-        // Convert, wait for completion, and store results
-        //
-        /*
-        if (ADC_getInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1) == true)
-        {
-            ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
-            //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
-            //ADCINA5_Val = AdcaResultRegs.ADCRESULT5;
-            ADCINA5_Val  = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
-            ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
+            EALLOW;
+            AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;
+            AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+
+            AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1;
+            AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+            EDIS;
+
+            AdcaRegs.ADCSOCFRC1.bit.SOC0 = 1;
+            AdcbRegs.ADCSOCFRC1.bit.SOC0 = 1;
+
+            while(AdcaRegs.ADCINTFLG.bit.ADCINT1 == 0);
+            AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+            ADCINA4_Val = AdcaResultRegs.ADCRESULT0;
+
+            while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
+            AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+            ADCINA5_Val = AdcbResultRegs.ADCRESULT0;
+
+            /*
+            //Read 3-Phase AC: PhaseA Voltage value (VPhaseAFbk)
+            ADCINA0_VPhaseAFbk_Val = AdcaResultRegs.ADCRESULT0;
+
+            //Read 3-Phase AC: PhaseB Voltage value (VPhaseBFbk)
+            ADCINA1_VPhaseAFbk_Val = AdcaResultRegs.ADCRESULT1;
+
+            //Read 3-Phase AC: PhaseC Voltage value (VPhaseCFbk)
+            ADCINA2_VPhaseAFbk_Val = AdcaResultRegs.ADCRESULT2;
+
+            //Read DCLINK Voltage value (HV_Vsns)
+            ADCINA3_DCLINKVoltage_Val = AdcaResultRegs.ADCRESULT3;
+
+            //Read DCLINK Current value (HViSns)
+            ADCINA4_DCLINKVoltage_Val = AdcaResultRegs.ADCRESULT4;
+
+            //Read Temperature Max value (Tmax)
+            ADCINA5_TempMax_Val = AdcaResultRegs.ADCRESULT5;
+
+            //Read 3-Phase AC: PhaseA Current value (IPhaseAFbk)
+            ADCINB0_TempMax_Val = AdcbResultRegs.ADCRESULT0;
+            */
+
+
+
+            EALLOW;
+            AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0;
+            AdcbRegs.ADCINTSEL1N2.bit.INT1E = 0;
+            EDIS;
+
         }
-        */
-
-    }
 
 }
 
@@ -234,13 +269,11 @@ __interrupt void epwm12ISR(void)
         pdpu_UpdateCompareReg(SpaceVectorTransitionTime);
     }
 
+
+    // CCS Debug Channel Graphs
     //DlogCh1 = DlogCh1_SVM;
     //DlogCh2 = DlogCh2_SVM;
-
-
-    // Debug
     //DLOG_4CH_F_FUNC(&dlog_4ch1);
-
 
 
     //Read /vDCFT, /iDCFT, /TMPFT, /vPHFT and /iFLT faults from inverter hardware and disable the inverter
@@ -248,6 +281,27 @@ __interrupt void epwm12ISR(void)
     {
         InverterState = OFF;
     }*/
+
+/*    EALLOW;
+    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 0x0001;
+    EDIS;
+
+    //
+    //software force start SOC0 to SOC7
+    //
+    AdcaRegs.ADCSOCFRC1.all = 0x00FF;
+
+    if (AdcaRegs.ADCINTFLG.bit.ADCINT1 == 1)
+    {
+        AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+        ADCINA5_Val = AdcaResultRegs.ADCRESULT4;
+        EALLOW;
+        AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0;
+        EDIS;
+    }
+*/
+
 
 
     GPIO_writePin(37,0);
@@ -264,6 +318,155 @@ __interrupt void epwm12ISR(void)
 
     //GPIO_writePin(37,0);
 }
+
+
+// testing purposes only
+
+
+//
+// ConfigureADC - Write ADC configurations and power up the ADC for both
+//                ADC A and ADC B
+//
+void ConfigureADC(void)
+{
+    EALLOW;
+
+    //
+    //write configurations
+    //
+    AdcaRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
+    //AdcSetMode(ADC_ADCA, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE);
+    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
+
+    //
+    //Set pulse positions to late
+    //
+    AdcaRegs.ADCCTL1.bit.INTPULSEPOS = 1;
+
+    //
+    //power up the ADC
+    //
+    AdcaRegs.ADCCTL1.bit.ADCPWDNZ = 1;
+
+    //
+    //delay for 1ms to allow ADC time to power up
+    //
+    DELAY_US(1000);
+
+    EDIS;
+}
+
+//
+// SetupADCContinuous - setup the ADC to continuously convert on one channel
+//
+void SetupADCContinuous(Uint16 channel)
+{
+    Uint16 acqps;
+
+    //
+    // Determine minimum acquisition window (in SYSCLKS) based on resolution
+    //
+    if(ADC_RESOLUTION_12BIT == AdcaRegs.ADCCTL2.bit.RESOLUTION)
+    {
+        acqps = 14; //75ns
+    }
+    else //resolution is 16-bit
+    {
+        acqps = 63; //320ns
+    }
+
+    EALLOW;
+    AdcaRegs.ADCSOC0CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC1CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC2CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC3CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC4CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC5CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC6CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC7CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC8CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC9CTL.bit.CHSEL  = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC10CTL.bit.CHSEL = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC11CTL.bit.CHSEL = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC12CTL.bit.CHSEL = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC13CTL.bit.CHSEL = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC14CTL.bit.CHSEL = channel;  //SOC will convert on channel
+    AdcaRegs.ADCSOC15CTL.bit.CHSEL = channel;  //SOC will convert on channel
+
+    AdcaRegs.ADCSOC0CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC1CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC2CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC3CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC4CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC5CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC6CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC7CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC8CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC9CTL.bit.ACQPS  = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC10CTL.bit.ACQPS = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC11CTL.bit.ACQPS = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC12CTL.bit.ACQPS = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC13CTL.bit.ACQPS = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC14CTL.bit.ACQPS = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+    AdcaRegs.ADCSOC15CTL.bit.ACQPS = acqps;    //sample window is acqps +
+                                               //1 SYSCLK cycles
+
+    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0; //disable INT1 flag
+    AdcaRegs.ADCINTSEL1N2.bit.INT2E = 0; //disable INT2 flag
+    AdcaRegs.ADCINTSEL3N4.bit.INT3E = 0; //disable INT3 flag
+    AdcaRegs.ADCINTSEL3N4.bit.INT4E = 0; //disable INT4 flag
+
+    AdcaRegs.ADCINTSEL1N2.bit.INT1CONT = 0;
+    AdcaRegs.ADCINTSEL1N2.bit.INT2CONT = 0;
+    AdcaRegs.ADCINTSEL3N4.bit.INT3CONT = 0;
+    AdcaRegs.ADCINTSEL3N4.bit.INT4CONT = 0;
+
+    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = 6;  //end of SOC6 will set INT1 flag
+    AdcaRegs.ADCINTSEL1N2.bit.INT2SEL = 14; //end of SOC14 will set INT2 flag
+    AdcaRegs.ADCINTSEL3N4.bit.INT3SEL = 7;  //end of SOC7 will set INT3 flag
+    AdcaRegs.ADCINTSEL3N4.bit.INT4SEL = 15; //end of SOC15 will set INT4 flag
+
+    //
+    //ADCINT2 will trigger first 8 SOCs
+    //
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC0 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC1 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC2 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC3 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC4 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC5 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC6 = 2;
+    AdcaRegs.ADCINTSOCSEL1.bit.SOC7 = 2;
+
+    //
+    //ADCINT1 will trigger second 8 SOCs
+    //
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC8 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC9 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC10 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC11 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC12 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC13 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC14 = 1;
+    AdcaRegs.ADCINTSOCSEL2.bit.SOC15 = 1;
+    EDIS;
+}
+
 
 
 
