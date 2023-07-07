@@ -25,6 +25,7 @@ typedef struct
     float Axis3;    /**< Phase C or Axis 3 */
 }VECTOR;
 
+#define TWOBYTHREE      (0.66666)
 #define ONEBYSQRT2      ( 0.70721 )
 #define SQRT3BY2        ( 0.866602)
 #define PMW_PERIOD      ( 50e-6   )
@@ -37,6 +38,12 @@ extern VECTOR VectDQZtoRXZ(VECTOR VectDQZ, float theta);
 extern VECTOR VectRXZtoABC(VECTOR VectRXZ);
 extern VECTOR VectRXZtoABCSin(VECTOR VectRXZ);
 extern VECTOR RotateRXZby30Degree(VECTOR VectorRXZ);
+
+extern VECTOR VectABCtoRXZ(VECTOR VectABC);
+extern VECTOR VectRXZtoDQZ(VECTOR VectRXZ, float theta);
+
+extern float ComputeVectorMagnitude(VECTOR VectDQZ);
+extern VECTOR VectorCrossProduct(VECTOR vect1, VECTOR vect2);
 
 
 

@@ -59,6 +59,7 @@
 #include "pmu_ProfilerData.h"
 #include "dmu_CcsDataLog.h"
 #include <sdp_CurrentSensor.h>
+#include <cam_PLL.h>
 
 //
 // EPWM12 10 microseconds interrupt service routine
@@ -196,6 +197,7 @@ void main(void)
         while(1)
         {
 
+            phaselock();
             cdu_ProcessDiagnoticMsgs();
             pmu_SynchronizeProfilerObjects();
 
