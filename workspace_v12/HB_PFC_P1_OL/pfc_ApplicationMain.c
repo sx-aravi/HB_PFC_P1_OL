@@ -58,6 +58,7 @@
 #include "ddi_CAN.h"
 #include "pmu_ProfilerData.h"
 #include "dmu_CcsDataLog.h"
+#include <sdp_CurrentSensor.h>
 
 //
 // EPWM12 10 microseconds interrupt service routine
@@ -65,13 +66,16 @@
 __interrupt void epwm12ISR(void);
 
 
-uint16_t ADCINA4_Val =0;
-uint16_t ADCINA5_Val =0;
+uint16_t MeasuredPhaseCurrentAValue =0;
+uint16_t MeasuredTemperatureValue =0;
+float PhACurrentPU = 0;
 
 
 
 //
-//OPen following code for RAM version code to allow debugging
+//Open the following for RAM version code to allow debugging
+//
+
 /*float DBUFF_4CH1[200],
       DBUFF_4CH2[200],
       DBUFF_4CH3[200],
@@ -130,6 +134,8 @@ void main(void)
 
     // Initialize DLOG
     //Disabled for FLASH version code; open for RAM version code
+    //
+
 	/*DLOG_4CH_F_init(&dlog_4ch1);
 	dlog_4ch1.input_ptr1 = &DlogCh1;
 	dlog_4ch1.input_ptr2 = &DlogCh2;
@@ -179,8 +185,6 @@ void main(void)
     //
     CAN_startModule(CANB_BASE);
 
-    //ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
-    //AdcaRegs.ADCSOCFRC1.bit.SOC0 = 1; //SOC0
 
     //Fault Reset, DSPEN default values during the system initialization.
     GPIO_writePin(32,0);
@@ -195,56 +199,46 @@ void main(void)
             cdu_ProcessDiagnoticMsgs();
             pmu_SynchronizeProfilerObjects();
 
-
+            //
+            // Following code measures the Temperature & Phase A current for Open Loop Test only. This will be moved to CLA task for closed loop test
+            //
 
             EALLOW;
-            AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;
-            AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+            //AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;
+            //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
 
             AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1;
             AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
             EDIS;
 
-            AdcaRegs.ADCSOCFRC1.bit.SOC0 = 1;
+            //AdcaRegs.ADCSOCFRC1.bit.SOC5 = 1;
             AdcbRegs.ADCSOCFRC1.bit.SOC0 = 1;
 
+            /*
+            //Read Temperature Max value (Tmax)
             while(AdcaRegs.ADCINTFLG.bit.ADCINT1 == 0);
             AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
-            ADCINA4_Val = AdcaResultRegs.ADCRESULT0;
-
-            while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
-            AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
-            ADCINA5_Val = AdcbResultRegs.ADCRESULT0;
-
-            /*
-            //Read 3-Phase AC: PhaseA Voltage value (VPhaseAFbk)
-            ADCINA0_VPhaseAFbk_Val = AdcaResultRegs.ADCRESULT0;
-
-            //Read 3-Phase AC: PhaseB Voltage value (VPhaseBFbk)
-            ADCINA1_VPhaseAFbk_Val = AdcaResultRegs.ADCRESULT1;
-
-            //Read 3-Phase AC: PhaseC Voltage value (VPhaseCFbk)
-            ADCINA2_VPhaseAFbk_Val = AdcaResultRegs.ADCRESULT2;
-
-            //Read DCLINK Voltage value (HV_Vsns)
-            ADCINA3_DCLINKVoltage_Val = AdcaResultRegs.ADCRESULT3;
-
-            //Read DCLINK Current value (HViSns)
-            ADCINA4_DCLINKVoltage_Val = AdcaResultRegs.ADCRESULT4;
-
-            //Read Temperature Max value (Tmax)
-            ADCINA5_TempMax_Val = AdcaResultRegs.ADCRESULT5;
-
-            //Read 3-Phase AC: PhaseA Current value (IPhaseAFbk)
-            ADCINB0_TempMax_Val = AdcbResultRegs.ADCRESULT0;
+            MeasuredTemperatureValue = AdcaResultRegs.ADCRESULT5;
             */
 
+            //Read 3-Phase AC: PhaseA Current value (IPhaseAFbk)
+            //while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
+            if(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0)
+            {
+                AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+                MeasuredPhaseCurrentAValue = AdcbResultRegs.ADCRESULT0;
 
+                EALLOW;
+                //AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0;
+                AdcbRegs.ADCINTSEL1N2.bit.INT1E = 0;
+                EDIS;
+            }
+            //PhACurrentPU = sdp_ConvertCurrentToPU(MeasuredPhaseCurrentAValue);
 
-            EALLOW;
-            AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0;
-            AdcbRegs.ADCINTSEL1N2.bit.INT1E = 0;
-            EDIS;
+            if(MeasuredPhaseCurrentAValue >= PHASE_CURRENT_FAULT_THRESHOLD_COUNT)
+            {
+                InverterState = OFF;
+            }
 
         }
 
@@ -276,32 +270,11 @@ __interrupt void epwm12ISR(void)
     //DLOG_4CH_F_FUNC(&dlog_4ch1);
 
 
-    //Read /vDCFT, /iDCFT, /TMPFT, /vPHFT and /iFLT faults from inverter hardware and disable the inverter
-    /*if((GPIO_readPin(33) == 1) | (GPIO_readPin(34) == 1) | (GPIO_readPin(35) == 1) |(GPIO_readPin(63) == 1))
+    //Read over temperature fault /TMPFT from inverter hardware and disable the inverter
+    if(GPIO_readPin(33) == 0)
     {
-        InverterState = OFF;
-    }*/
-
-/*    EALLOW;
-    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;
-    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 0x0001;
-    EDIS;
-
-    //
-    //software force start SOC0 to SOC7
-    //
-    AdcaRegs.ADCSOCFRC1.all = 0x00FF;
-
-    if (AdcaRegs.ADCINTFLG.bit.ADCINT1 == 1)
-    {
-        AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
-        ADCINA5_Val = AdcaResultRegs.ADCRESULT4;
-        EALLOW;
-        AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0;
-        EDIS;
+        //InverterState = OFF;
     }
-*/
-
 
 
     GPIO_writePin(37,0);
@@ -316,7 +289,6 @@ __interrupt void epwm12ISR(void)
     //
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
 
-    //GPIO_writePin(37,0);
 }
 
 

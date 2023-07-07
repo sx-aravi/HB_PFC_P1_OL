@@ -33,12 +33,12 @@
 //
 
 //50 KHz --> 1000 count
-//#define EPWM_TIMER_TBPRD   1000U
-//#define EPWM_CMP           500U
+#define EPWM_TIMER_TBPRD   1000U
+#define EPWM_CMP           500U
 
 //100 KHz --> 500 count
-#define EPWM_TIMER_TBPRD   500U
-#define EPWM_CMP           250U
+//#define EPWM_TIMER_TBPRD   500U
+//#define EPWM_CMP           250U
 
 #define EPWM_CMPA          500U
 #define EPWM_CMPB          500U
