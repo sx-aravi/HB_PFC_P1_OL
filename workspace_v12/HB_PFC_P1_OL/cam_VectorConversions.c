@@ -18,15 +18,23 @@
 #include <cam_VectorConversions.h>
 
 
+
+/*******************************************************************************
+**
+* @brief Utility function to convert DQ vector to RXZ reference
+* @parameter VectDQZ             - space vector in DQZ to be converted
+* @return VectRXZ             - Space Vector in RXZ
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+**
+*******************************************************************************/
+
 VECTOR VectDQZtoRXZ(VECTOR VectDQZ, float theta)
 {
     float temp_sin, temp_cos;
     VECTOR VectRXZ;
 
-    //Multiply TI Sine/Cosine outputs by 2/3 or 0.666667
-
-    //temp_sin = 0.6667 * __sinpuf32(theta);
-    //temp_cos = 0.6667 * __cospuf32(theta);
 
     temp_sin =  __sinpuf32(theta);
     temp_cos =  __cospuf32(theta);
@@ -39,38 +47,44 @@ VECTOR VectDQZtoRXZ(VECTOR VectDQZ, float theta)
     return VectRXZ;
 }
 
-/*(3/2)*[1, -1/2, -1/2;
-        0, sqrt(3)/2, -sqrt(3)/2;
-        1/sqrt(2), 1/sqrt(2), 1/sqrt(2);]
-        */
-VECTOR VectRXZtoABC(VECTOR VectRXZ)
+
+/*******************************************************************************
+**
+* @brief Utility function to convert RXZ vector to DQZ reference
+* @parameter VectRXZ          - space vector in RXZ to be converted
+* @return VectDQZ             - Space Vector in DQZ
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+**
+*******************************************************************************/
+
+
+VECTOR VectRXZtoDQZ(VECTOR VectRXZ, float theta)
 {
-    VECTOR VectABC;
+    float temp_sin, temp_cos;
+    VECTOR VectDQZ;
 
-    VectABC.Axis1 =  ( (       1.0 * VectRXZ.Axis1) + (       0.0 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * 1.5;
-    VectABC.Axis2 =  ( (      -0.5 * VectRXZ.Axis1) + (  SQRT3BY2 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * 1.5;
-    VectABC.Axis3 =  ( (      -0.5 * VectRXZ.Axis1) + ( -SQRT3BY2 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * 1.5;
+    temp_sin = __sinpuf32(theta);
+    temp_cos = __cospuf32(theta);
 
-    return VectABC;
+    VectDQZ.Axis1 = ( temp_cos * VectRXZ.Axis1 ) + ( temp_sin * VectRXZ.Axis2 ) + ( 0 * VectRXZ.Axis3 );
+    VectDQZ.Axis2 = (-temp_sin * VectRXZ.Axis1 ) + ( temp_cos * VectRXZ.Axis2 ) + ( 0 * VectRXZ.Axis3 );
+    VectDQZ.Axis3 = (        0 * VectRXZ.Axis1 ) + (        0 * VectRXZ.Axis2 ) + ( 1 * VectRXZ.Axis3 );
+
+    return VectDQZ;
 }
 
-/*
-|        0,         1,   1/sqrt(2); |
-| -sqrt(3)/2,   -1/2,    1/sqrt(2); |
-| sqrt(3)/2,     -1/2    1/sqrt(2); |
-*/
-
-VECTOR VectRXZtoABCSin(VECTOR VectRXZ)
-{
-    VECTOR VectABC;
-
-    VectABC.Axis1 =  ( (         0 * VectRXZ.Axis1) + (     1 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * TWOBYSQRT3;
-    VectABC.Axis2 =  ( ( -SQRT3BY2 * VectRXZ.Axis1) + (  -0.5 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * TWOBYSQRT3;
-    VectABC.Axis3 =  ( (  SQRT3BY2 * VectRXZ.Axis1) + (  -0.5 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * TWOBYSQRT3;
-
-    return VectABC;
-}
-
+/*******************************************************************************
+**
+* @brief Utility function to convert ABC vector to RXZ reference
+* @parameter VectABC          - space vector in ABC to be converted
+* @return VectRXZ             - Space Vector in RXZ
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+**
+*******************************************************************************/
 
 // (2/3)*[1, -1/2, -1/2;   0, sqrt(3)/2, -sqrt(3)/2; 1/sqrt(2), 1/sqrt(2), 1/sqrt(2);]
 VECTOR VectABCtoRXZ(VECTOR VectABC)
@@ -85,35 +99,85 @@ VECTOR VectABCtoRXZ(VECTOR VectABC)
 }
 
 
-//[ 1,1,0; -1,1,0; 0,0,0;]
-VECTOR VectRXZtoDQZ(VECTOR VectRXZ, float theta)
-{
-    float temp_sin, temp_cos;
-    VECTOR VectDQZ;
-
-    temp_sin = __sinpuf32(theta);
-    temp_cos = __cospuf32(theta);
-
-    VectDQZ.Axis1 = ( temp_cos * VectRXZ.Axis1 ) + ( temp_sin * VectRXZ.Axis2 ) + ( 0 * VectRXZ.Axis3 );
-    VectDQZ.Axis2 = (-temp_sin * VectRXZ.Axis1 ) + ( temp_cos * VectRXZ.Axis2 ) + ( 0 * VectRXZ.Axis3 );
-    VectDQZ.Axis3 = (        0 * VectRXZ.Axis1 ) + (        0 * VectRXZ.Axis2 ) + ( 1 * VectRXZ.Axis3 );
-
-    return VectDQZ;
-
-}
-
 
 //
 /*******************************************************************************
 *//**
+* @brief Utility function to convert RXZ vector to ABC Cosine reference
+* @parameter VectRXZ             - space vector in RXZ to be converted
+* @return VectABC             - Space Vector in ABC
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+*
+*******************************************************************************/
+
+VECTOR VectRXZtoABC(VECTOR VectRXZ)
+{
+    VECTOR VectABC;
+
+    VectABC.Axis1 =  ( (       1.0 * VectRXZ.Axis1) + (       0.0 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * 1.5;
+    VectABC.Axis2 =  ( (      -0.5 * VectRXZ.Axis1) + (  SQRT3BY2 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * 1.5;
+    VectABC.Axis3 =  ( (      -0.5 * VectRXZ.Axis1) + ( -SQRT3BY2 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * 1.5;
+
+    return VectABC;
+}
+
+
+/*******************************************************************************
+**
+* @brief Utility function to convert RXZ vector to ABC Sinusoidal reference
+* @parameter VectRXZ             - space vector in RXZ to be converted
+* @return VectABC             - Space Vector in ABC
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+*
+*******************************************************************************/
+
+VECTOR VectRXZtoABCSin(VECTOR VectRXZ)
+{
+    VECTOR VectABC;
+
+    VectABC.Axis1 =  ( (         0 * VectRXZ.Axis1) + (     1 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * TWOBYSQRT3;
+    VectABC.Axis2 =  ( ( -SQRT3BY2 * VectRXZ.Axis1) + (  -0.5 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * TWOBYSQRT3;
+    VectABC.Axis3 =  ( (  SQRT3BY2 * VectRXZ.Axis1) + (  -0.5 * VectRXZ.Axis2) + ( ONEBYSQRT2 * VectRXZ.Axis3)) * TWOBYSQRT3;
+
+    return VectABC;
+}
+
+
+/*******************************************************************************
+**
+* @brief Utility function to rotate a space vector by 30 degrees
+* @parameter SpaceVectorRXZ             - space vector in RXZ to be rotated by 30 deg
+* @return SpaceVectorRXZ             - Space Vector with 30 deg rotation
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+*
+*******************************************************************************/
+
+VECTOR RotateRXZby30Degree(VECTOR VectorRXZ)
+{
+    VECTOR tempVect;
+
+    tempVect.Axis1 =  ( ( SQRT3BY2 * VectorRXZ.Axis1) + (    -0.5 * VectorRXZ.Axis2) + (   0  * VectorRXZ.Axis3));
+    tempVect.Axis2 =  ( (      0.5 * VectorRXZ.Axis1) + (SQRT3BY2 * VectorRXZ.Axis2) + (   0  * VectorRXZ.Axis3));
+    tempVect.Axis3 =  ( (        0 * VectorRXZ.Axis1) + (       0 * VectorRXZ.Axis2) + (   1  * VectorRXZ.Axis3));
+
+    return tempVect;
+}
+
+/*******************************************************************************
+*
 * @brief Utility function to compute vector magnitude
-* @param SpaceVectorDQZ             - space vector in DQZ
-* @retun vector magnitude
+* @parameter SpaceVectorDQZ             - space vector in DQZ
+* @return vector magnitude
 *
-* Source is mapped to Matlab Model
-* To be docuemnted
-*
-*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented
+**
 *******************************************************************************/
 
 float ComputeVectorMagnitude(VECTOR VectDQZ)
@@ -129,17 +193,17 @@ float ComputeVectorMagnitude(VECTOR VectDQZ)
     return magnitude;
 }
 
-//
+
+
 /*******************************************************************************
-*//**
+**
 * @brief Utility function to compute vector cross product
-* @param vector1, vector2
-* @retun Cross vector
+* @parameter vector1, vector2
+* @return Cross vector
 *
-* Source is mapped to Matlab Model
-* To be docuemnted
-*
-*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented
+**
 *******************************************************************************/
 
 VECTOR VectorCrossProduct(VECTOR vect1, VECTOR vect2)
@@ -154,29 +218,4 @@ VECTOR VectorCrossProduct(VECTOR vect1, VECTOR vect2)
 }
 
 
-
-//
-/*******************************************************************************
-*//**
-* @brief Utility function to rotate a space vector by 30 degrees
-* @param SpaceVectorRXZ             - space vector in RXZ to be rotated by 30 deg
-* @retun SpaceVectorRXZ             - Space Vector with 30 deg rotation
-*
-* Source is mapped to Matlab Model
-* To be docuemnted
-*
-*
-*******************************************************************************/
-// [ sqrt(3)/2, -1/2,  0;       1/2, sqrt(3)/2, 0;      0, 0, 1;]
-//
-VECTOR RotateRXZby30Degree(VECTOR VectorRXZ)
-{
-    VECTOR tempVect;
-
-    tempVect.Axis1 =  ( ( SQRT3BY2 * VectorRXZ.Axis1) + (    -0.5 * VectorRXZ.Axis2) + (   0  * VectorRXZ.Axis3));
-    tempVect.Axis2 =  ( (      0.5 * VectorRXZ.Axis1) + (SQRT3BY2 * VectorRXZ.Axis2) + (   0  * VectorRXZ.Axis3));
-    tempVect.Axis3 =  ( (        0 * VectorRXZ.Axis1) + (       0 * VectorRXZ.Axis2) + (   1  * VectorRXZ.Axis3));
-
-    return tempVect;
-}
-
+//End of file

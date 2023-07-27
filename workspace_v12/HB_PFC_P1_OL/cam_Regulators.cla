@@ -1,0 +1,92 @@
+/******************************************************************************
+* Sarinx LLC Proprietary Data.
+* This document contains information, which is the property of Sarinx LLC
+* Except for rights expressly granted by contract to the United
+* States Government, this document may not, in whole or in part, be duplicated
+* or disclosed, or used for design or manufacturing purposes without the prior
+* written permission of Sarinx LLC
+* -----------------------------------------------------------------------------
+*//**
+* @file cam_Regulators.cla
+* @brief perform PLL, current and voltage regulators algorithms
+*
+* This module define CLA tasks for all control algorithms
+*
+* @author Sarinx LLC
+*******************************************************************************/
+
+#include <cam_Regulators.h>
+//#include "F2837xD_device.h"
+//#include <siu_CLA.h>
+
+//
+// Function Definitions
+//
+//Task 1 : Matrix determinant
+__interrupt void Cla1Task1 ( void )
+{
+
+    asm("EALLOW:");
+    AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1;
+
+    AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+
+    Cla1ToCpu1Transfer[0][0] = AdcbResultRegs.ADCRESULT0;
+    Cla1ToCpu1Transfer[0][1] = AdcbResultRegs.ADCRESULT1;
+    Cla1ToCpu1Transfer[0][2] = AdcbResultRegs.ADCRESULT2;
+
+    AdcbRegs.ADCINTSEL1N2.bit.INT1E = 0;
+    asm("EDIS:");
+}
+
+
+__interrupt void Cla1Task2 ( void )
+{
+
+
+}
+
+__interrupt void Cla1Task3 ( void )
+{
+
+
+
+}
+
+__interrupt void Cla1Task4 ( void )
+{
+
+
+
+}
+
+__interrupt void Cla1Task5 ( void )
+{
+
+}
+
+__interrupt void Cla1Task6 ( void )
+{
+
+
+}
+
+__interrupt void Cla1Task7 ( void )
+{
+
+
+
+}
+
+__interrupt void Cla1Task8 ( void )
+{
+
+
+}
+
+
+//
+//-----------------------------------------------------------------------------|
+//<<<<<<<<<<<<<<<<<<<<<< PRE-PROCESSOR DIRECTIVES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>|
+//-----------------------------------------------------------------------------|
+//

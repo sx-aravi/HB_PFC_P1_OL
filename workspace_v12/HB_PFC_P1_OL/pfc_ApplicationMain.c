@@ -60,6 +60,44 @@
 #include "dmu_CcsDataLog.h"
 #include <sdp_CurrentSensor.h>
 #include <cam_PLL.h>
+#include <cam_Regulators.h>
+#include <siu_CLA.h>
+
+
+
+
+// Start of CLA Specific Declaration
+
+//Task 1 (C) Variables
+// NOTE: Do not initialize the Message RAM variables globally, they will be
+// reset during the message ram initialization phase in the CLA memory
+// configuration routine
+//
+
+#define WAITSTEP     asm(" RPT #255 || NOP")
+
+#pragma DATA_SECTION(Cpu1ToCla1Transfer,"CpuToCla1MsgRAM");
+float Cpu1ToCla1Transfer[M][N];
+#pragma DATA_SECTION(Cla1ToCpu1Transfer,"Cla1ToCpuMsgRAM");
+float Cla1ToCpu1Transfer[M][N];
+
+
+//
+// Function Prototypes
+//
+void CLA_runTest(void);
+void CLA_configClaMemory(void);
+void CLA_initCpu1Cla1(void);
+
+
+
+
+
+// End of CLA specific declaration
+
+
+
+
 
 //
 // EPWM12 10 microseconds interrupt service routine
@@ -162,6 +200,9 @@ void main(void)
     ddi_InitializeSpi();
     ddi_InitializeADCs();
 
+    CLA_configClaMemory();
+    siu_InitCla();
+
     //
     // Enable sync and clock to PWM
     //
@@ -191,6 +232,9 @@ void main(void)
     GPIO_writePin(32,0);
     GPIO_writePin(29,0);
 
+
+    CLA_runTest();
+
     //
     // take conversions indefinitely in loop
     //
@@ -205,16 +249,16 @@ void main(void)
             // Following code measures the Temperature & Phase A current for Open Loop Test only. This will be moved to CLA task for closed loop test
             //
 
-            EALLOW;
+/*            EALLOW;
             //AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1;
             //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
 
             AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1;
             AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
             EDIS;
-
+*/
             //AdcaRegs.ADCSOCFRC1.bit.SOC5 = 1;
-            AdcbRegs.ADCSOCFRC1.bit.SOC0 = 1;
+            //AdcbRegs.ADCSOCFRC1.bit.SOC0 = 1;
 
             /*
             //Read Temperature Max value (Tmax)
@@ -225,7 +269,7 @@ void main(void)
 
             //Read 3-Phase AC: PhaseA Current value (IPhaseAFbk)
             //while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
-            if(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0)
+ /*           if(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0)
             {
                 AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
                 MeasuredPhaseCurrentAValue = AdcbResultRegs.ADCRESULT0;
@@ -234,13 +278,15 @@ void main(void)
                 //AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0;
                 AdcbRegs.ADCINTSEL1N2.bit.INT1E = 0;
                 EDIS;
-            }
+            }*/
             //PhACurrentPU = sdp_ConvertCurrentToPU(MeasuredPhaseCurrentAValue);
 
             if(MeasuredPhaseCurrentAValue >= PHASE_CURRENT_FAULT_THRESHOLD_COUNT)
             {
                 InverterState = OFF;
             }
+
+            MeasuredPhaseCurrentAValue = Cla1ToCpu1Transfer[0][0];
 
         }
 
@@ -257,6 +303,9 @@ __interrupt void epwm12ISR(void)
     // Call Space vector Modulation process every 10 microseconds
 
     GPIO_writePin(37,1);
+
+    //AdcbRegs.ADCSOCFRC1.bit.SOC0 = 1;
+    AdcbRegs.ADCSOCFRC1.all = 0xF;
 
     svm();
 
@@ -294,153 +343,105 @@ __interrupt void epwm12ISR(void)
 }
 
 
-// testing purposes only
+
+// CLA specific unction definitions, will be moved CLA files later
+
 
 
 //
-// ConfigureADC - Write ADC configurations and power up the ADC for both
-//                ADC A and ADC B
+// CLA_runTest - Execute CLA1 Task1 Test
 //
-void ConfigureADC(void)
+void CLA_runTest(void)
 {
-    EALLOW;
 
-    //
-    //write configurations
-    //
-    AdcaRegs.ADCCTL2.bit.PRESCALE = 6; //set ADCCLK divider to /4
-    //AdcSetMode(ADC_ADCA, ADC_RESOLUTION_12BIT, ADC_SIGNALMODE_SINGLE);
-    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
 
-    //
-    //Set pulse positions to late
-    //
-    AdcaRegs.ADCCTL1.bit.INTPULSEPOS = 1;
+    Cpu1ToCla1Transfer[0][0] = SpaceVectorTransitionTime.Axis1;
+    Cpu1ToCla1Transfer[0][1] = SpaceVectorTransitionTime.Axis1;
+    Cpu1ToCla1Transfer[0][2] = SpaceVectorTransitionTime.Axis1;
+    Cpu1ToCla1Transfer[1][0] = SpaceVectorTransitionTime.Axis2;
+    Cpu1ToCla1Transfer[1][1] = SpaceVectorTransitionTime.Axis2;
+    Cpu1ToCla1Transfer[1][2] = SpaceVectorTransitionTime.Axis2;
+    Cpu1ToCla1Transfer[2][0] = SpaceVectorTransitionTime.Axis3;
+    Cpu1ToCla1Transfer[2][1] = SpaceVectorTransitionTime.Axis3;
+    Cpu1ToCla1Transfer[2][2] = SpaceVectorTransitionTime.Axis3;
 
-    //
-    //power up the ADC
-    //
-    AdcaRegs.ADCCTL1.bit.ADCPWDNZ = 1;
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_1);
 
-    //
-    //delay for 1ms to allow ADC time to power up
-    //
-    DELAY_US(1000);
+#if 0
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_2);
+    WAITSTEP;
 
-    EDIS;
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_3);
+    WAITSTEP;
+
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_4);
+    WAITSTEP;
+
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_5);
+    WAITSTEP;
+
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_6);
+    WAITSTEP;
+
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_7);
+    WAITSTEP;
+
+    CLA_forceTasks(CLA1_BASE,CLA_TASKFLAG_8);
+    WAITSTEP;
+#endif
 }
 
 //
-// SetupADCContinuous - setup the ADC to continuously convert on one channel
+// CLA_configClaMemory - Configure CLA memory sections
 //
-void SetupADCContinuous(Uint16 channel)
+void CLA_configClaMemory(void)
 {
-    Uint16 acqps;
-
-    //
-    // Determine minimum acquisition window (in SYSCLKS) based on resolution
-    //
-    if(ADC_RESOLUTION_12BIT == AdcaRegs.ADCCTL2.bit.RESOLUTION)
-    {
-        acqps = 14; //75ns
-    }
-    else //resolution is 16-bit
-    {
-        acqps = 63; //320ns
-    }
-
+    extern uint32_t Cla1funcsRunStart, Cla1funcsLoadStart, Cla1funcsLoadSize;
     EALLOW;
-    AdcaRegs.ADCSOC0CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC1CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC2CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC3CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC4CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC5CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC6CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC7CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC8CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC9CTL.bit.CHSEL  = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC10CTL.bit.CHSEL = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC11CTL.bit.CHSEL = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC12CTL.bit.CHSEL = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC13CTL.bit.CHSEL = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC14CTL.bit.CHSEL = channel;  //SOC will convert on channel
-    AdcaRegs.ADCSOC15CTL.bit.CHSEL = channel;  //SOC will convert on channel
 
-    AdcaRegs.ADCSOC0CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC1CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC2CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC3CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC4CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC5CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC6CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC7CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC8CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC9CTL.bit.ACQPS  = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC10CTL.bit.ACQPS = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC11CTL.bit.ACQPS = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC12CTL.bit.ACQPS = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC13CTL.bit.ACQPS = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC14CTL.bit.ACQPS = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-    AdcaRegs.ADCSOC15CTL.bit.ACQPS = acqps;    //sample window is acqps +
-                                               //1 SYSCLK cycles
-
-    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 0; //disable INT1 flag
-    AdcaRegs.ADCINTSEL1N2.bit.INT2E = 0; //disable INT2 flag
-    AdcaRegs.ADCINTSEL3N4.bit.INT3E = 0; //disable INT3 flag
-    AdcaRegs.ADCINTSEL3N4.bit.INT4E = 0; //disable INT4 flag
-
-    AdcaRegs.ADCINTSEL1N2.bit.INT1CONT = 0;
-    AdcaRegs.ADCINTSEL1N2.bit.INT2CONT = 0;
-    AdcaRegs.ADCINTSEL3N4.bit.INT3CONT = 0;
-    AdcaRegs.ADCINTSEL3N4.bit.INT4CONT = 0;
-
-    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = 6;  //end of SOC6 will set INT1 flag
-    AdcaRegs.ADCINTSEL1N2.bit.INT2SEL = 14; //end of SOC14 will set INT2 flag
-    AdcaRegs.ADCINTSEL3N4.bit.INT3SEL = 7;  //end of SOC7 will set INT3 flag
-    AdcaRegs.ADCINTSEL3N4.bit.INT4SEL = 15; //end of SOC15 will set INT4 flag
+#ifdef _FLASH
+    //
+    // Copy over code from FLASH to RAM
+    //
+    memcpy((uint32_t *)&Cla1funcsRunStart, (uint32_t *)&Cla1funcsLoadStart,
+           (uint32_t)&Cla1funcsLoadSize);
+#endif //_FLASH
 
     //
-    //ADCINT2 will trigger first 8 SOCs
+    // Initialize and wait for CLA1ToCPUMsgRAM
     //
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC0 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC1 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC2 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC3 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC4 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC5 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC6 = 2;
-    AdcaRegs.ADCINTSOCSEL1.bit.SOC7 = 2;
+    MemCfgRegs.MSGxINIT.bit.INIT_CLA1TOCPU = 1;
+    while(MemCfgRegs.MSGxINITDONE.bit.INITDONE_CLA1TOCPU != 1){};
 
     //
-    //ADCINT1 will trigger second 8 SOCs
+    // Initialize and wait for CPUToCLA1MsgRAM
     //
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC8 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC9 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC10 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC11 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC12 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC13 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC14 = 1;
-    AdcaRegs.ADCINTSOCSEL2.bit.SOC15 = 1;
+    MemCfgRegs.MSGxINIT.bit.INIT_CPUTOCLA1 = 1;
+    while(MemCfgRegs.MSGxINITDONE.bit.INITDONE_CPUTOCLA1 != 1){};
+
+    //
+    // Select LS4RAM and LS5RAM to be the programming space for the CLA
+    // First configure the CLA to be the master for LS4 and LS5 and then
+    // set the space to be a program block
+    //
+    MemCfgRegs.LSxMSEL.bit.MSEL_LS4 = 1;
+    MemCfgRegs.LSxCLAPGM.bit.CLAPGM_LS4 = 1;
+    //MemCfgRegs.LSxMSEL.bit.MSEL_LS5 = 1;
+    //MemCfgRegs.LSxCLAPGM.bit.CLAPGM_LS5 = 1;
+
+    //
+    // Next configure LS0RAM and LS1RAM as data spaces for the CLA
+    // First configure the CLA to be the master for LS0(1) and then
+    // set the spaces to be code blocks
+    //
+    MemCfgRegs.LSxMSEL.bit.MSEL_LS0 = 1;
+    MemCfgRegs.LSxCLAPGM.bit.CLAPGM_LS0 = 0;
+
+    MemCfgRegs.LSxMSEL.bit.MSEL_LS1 = 1;
+    MemCfgRegs.LSxCLAPGM.bit.CLAPGM_LS1 = 0;
+
     EDIS;
 }
-
 
 
 

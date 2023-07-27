@@ -51,13 +51,18 @@ float WrDQZ = 60;
 short SegmentID;
 //short RegionID;
 
+short region_index;
+
 float DlogCh1_SVM = 0;
 float DlogCh2_SVM = 0;
 
 VECTOR SpaceVectorDQZ = {0.866, 0, 0};
+//VECTOR SpaceVectorDQZ = {0.65, 0, 0};
 //VECTOR SpaceVectorDQZ = {0.5, 0, 0};
 //VECTOR SpaceVectorDQZ = {0.433, 0, 0};
 //VECTOR SpaceVectorDQZ = {0.217, 0, 0};
+
+VECTOR TempSpaceVectorRXZ;
 
 VECTOR SpaceVectorRXZ;
 VECTOR CounterRotatedRXZ;
@@ -76,6 +81,8 @@ short TempDebugVar;
 short InverterState = OFF;
 short GpioFaultResetBit = 0;
 short GpioEnableBit = 0;
+
+VECTOR TransitionVector;
 
 
 /** Vector to store the three axis of the three phase current / voltage
@@ -186,7 +193,7 @@ void svm(void)
 {
     GenerateSpaceVectorRXZ();
     ConvertRXZtoThreePhase();
-    DetectSegmentnSegmentID(SpaceVector3Phase);
+    DetectSegmentnSegmentID(SpaceVector3FSin);
     Segment=Segment_s;
     SegmentID=SegmentID_s;
 
@@ -196,8 +203,9 @@ void svm(void)
     CalculateTransitions();
     RotateSpaceVectorRXZ();
 
-    DlogCh1_SVM = SegmentID; //TempDebugVar; //SpaceVectorTransitionTime.Axis1; //CounterRotatedRXZ1.Axis1;//TempDebugVar;
-    DlogCh2_SVM = SpaceVectorTransitionTime.Axis1;//TransitionTimes.Axis3; //CounterRotatedRXZ1.Axis3;//
+    DlogCh1_SVM = SpaceVectorTransitionTime.Axis1;//AngleValue;//SegmentID;//SpaceVectorTransitionTime.Axis2;
+    DlogCh2_SVM = SpaceVectorTransitionTime.Axis2;//Region; //TransitionVector.Axis1;
+
 
   }
 
@@ -317,9 +325,9 @@ void CounterRotateSpaceVectorRXZ()
 
 void CalculateTransitions()
 {
-    VECTOR TransitionVector;
+
     float TransitionBias;
-    short region_index;
+
 
 
     short TransitionLookUpTable [7][7] = {{0,0,0,0,0,0,0},
@@ -332,6 +340,7 @@ void CalculateTransitions()
                                          };
 
     region_index = TransitionLookUpTable[SegmentID][Region];
+
 
     TempDebugVar = region_index;
 
@@ -379,9 +388,9 @@ void CalculateTransitions()
             }
         case REGION_3A: //case 5 - [ 1, 0, 0;   -1, 0, -2;   -1, 0, 0;], + [1; 3 ; 1;]/2
             {
-                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ1.Axis1) + (2 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) - 0.5;
-                TransitionVector.Axis2 = ((    -1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
-                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ1.Axis1) + (0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis1 = ((    -1 * CounterRotatedRXZ1.Axis1) + (-2 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) - 0.5;
+                TransitionVector.Axis2 = ((    -1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
+                TransitionVector.Axis3 = ((     1 * CounterRotatedRXZ1.Axis1) + ( 0 * CounterRotatedRXZ1.Axis2)  + ( 0 * CounterRotatedRXZ1.Axis3)) + 0.5;
 
                 break;
             }
@@ -592,6 +601,16 @@ void GenerateSpaceVectorRXZ()
     //%RotationMatrixDQtoRXZ;
     SpaceVectorRXZ = VectDQZtoRXZ(SpaceVectorDQZ, AngleValue);
 
+
+    TempSpaceVectorRXZ.Axis1 =  ( (  0 * SpaceVectorRXZ.Axis1) + (     1 * SpaceVectorRXZ.Axis2) + ( 0 * SpaceVectorRXZ.Axis3));
+    TempSpaceVectorRXZ.Axis2 =  ( ( -1 * SpaceVectorRXZ.Axis1) + (     0 * SpaceVectorRXZ.Axis2) + ( 0 * SpaceVectorRXZ.Axis3));
+    TempSpaceVectorRXZ.Axis3 =  ( (  0 * SpaceVectorRXZ.Axis1) + (     0 * SpaceVectorRXZ.Axis2) + ( 1 * SpaceVectorRXZ.Axis3));
+
+    SpaceVectorRXZ.Axis1 =  TempSpaceVectorRXZ.Axis1;
+    SpaceVectorRXZ.Axis2 =  TempSpaceVectorRXZ.Axis2;
+    SpaceVectorRXZ.Axis3 =  TempSpaceVectorRXZ.Axis3;
+
+
 }
 
 
@@ -618,6 +637,8 @@ void ConvertRXZtoThreePhase()
 
     //Sine
     SpaceVector3FSin = VectRXZtoABCSin(SpaceVectorRXZ);
+
+    TempDebugVector.Axis1  = SpaceVector3FSin.Axis1;
 
 }
 
@@ -1169,10 +1190,3 @@ void DetectRegion()
 //
 // End of file
 //
-
-
-
-
-
-
-

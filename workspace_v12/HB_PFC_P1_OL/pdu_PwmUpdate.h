@@ -33,18 +33,28 @@
 //
 
 //50 KHz --> 1000 count
-#define EPWM_TIMER_TBPRD   1000U
-#define EPWM_CMP           500U
+//#define EPWM_TIMER_TBPRD   1000U
+//#define EPWM_CMP           500U
+
+
+//80.128 KHz -->  624 count
+#define EPWM_TIMER_TBPRD   624U
+#define EPWM_CMP           312U
+
 
 //100 KHz --> 500 count
 //#define EPWM_TIMER_TBPRD   500U
 //#define EPWM_CMP           250U
+
+
+
 
 #define EPWM_CMPA          500U
 #define EPWM_CMPB          500U
 #define EPWM_CMP_UP        1U
 #define EPWM_CMP_DOWN      0U
 #define MAX_PWM_MODULES    6U
+
 
 //
 // Globals
@@ -86,8 +96,16 @@ void pdpu_Initialize_PWM_11(void);
 void pdpu_Initialize_PWM_12(void);
 
 extern void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime);
-extern void pdpu_InitPWM(uint32_t pwm_base);
+//extern void pdpu_InitPWM(uint32_t pwm_base);
+extern void pdu_InitPWM(uint32_t pwm_base, short dbcount);
 extern void pdpu_Disable_All_Phases();
+
+
+void pdu_setupEPWMActiveHigh(uint32_t pwm_base, short dbcount);
+void pdu_setupEPWMActiveHighComplementary(uint32_t pwm_base, short dbcount);
+void pdu_setupEPWMActiveLow(uint32_t pwm_base, short dbcount);
+void pdu_setupEPWMActiveLowComplementary(uint32_t pwm_base, short dbcount);
+void pdu_setupEPWMOutputSwap(uint32_t pwm_base);
 
 
 void pdpu_Enable_Phase_A_UpperChannel_B();

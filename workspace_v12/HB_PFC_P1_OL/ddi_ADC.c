@@ -131,8 +131,8 @@ void ddi_InitializeADCs()
     //Read 3-Phase AC: PhaseC Current value (IPhaseCFbk)    --> ADC_CH_ADCINB2
 
     ddi_InitializeADCB(ADC_SOC_NUMBER0, ADC_CH_ADCIN0);
-    //ddi_InitializeADCB(ADC_SOC_NUMBER1, ADC_CH_ADCIN1);
-    //ddi_InitializeADCB(ADC_SOC_NUMBER2, ADC_CH_ADCIN2);
+    ddi_InitializeADCB(ADC_SOC_NUMBER1, ADC_CH_ADCIN1);
+    ddi_InitializeADCB(ADC_SOC_NUMBER2, ADC_CH_ADCIN2);
 
 
  }

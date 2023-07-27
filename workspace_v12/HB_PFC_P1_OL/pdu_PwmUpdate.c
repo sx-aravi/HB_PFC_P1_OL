@@ -34,19 +34,13 @@ void pdpu_InitializePWM()
     // Initialize all EPWM registers
     //
 
-    /*pdpu_Initialize_PWM_7();
-    pdpu_Initialize_PWM_8();
-    pdpu_Initialize_PWM_9();
-    pdpu_Initialize_PWM_10();
-    pdpu_Initialize_PWM_11();
-    pdpu_Initialize_PWM_12();*/
 
-    pdpu_InitPWM(EPWM12_BASE);
-    pdpu_InitPWM(EPWM11_BASE);
-    pdpu_InitPWM(EPWM10_BASE);
-    pdpu_InitPWM(EPWM9_BASE);
-    pdpu_InitPWM(EPWM8_BASE);
-    pdpu_InitPWM(EPWM7_BASE);
+    pdu_InitPWM(EPWM12_BASE,83);
+    pdu_InitPWM(EPWM11_BASE,83);
+    pdu_InitPWM(EPWM10_BASE,83);
+    pdu_InitPWM(EPWM9_BASE,83);
+    pdu_InitPWM(EPWM8_BASE,83);
+    pdu_InitPWM(EPWM7_BASE,83);
 
     //
     // Interrupt where we will change the Compare Values
@@ -65,7 +59,7 @@ void pdpu_InitializePWM()
 * EPWMxA and EPWMxB — Complementary
 ******************************************************************************************************/
 
-void pdpu_InitPWM(uint32_t pwm_base)
+void pdu_InitPWM(uint32_t pwm_base, short dbcount)
 {
     //
     // Set-up TBCLK
@@ -114,6 +108,16 @@ void pdpu_InitPWM(uint32_t pwm_base)
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);
     EPWM_setActionQualifierAction(pwm_base, EPWM_AQ_OUTPUT_B, EPWM_AQ_OUTPUT_NO_CHANGE, EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPB);
+
+
+    //
+    // Setup Dead-band
+    //
+    pdu_setupEPWMActiveHighComplementary(pwm_base,dbcount);
+    //pdu_setupEPWMActiveLowComplementary(pwm_base,dbcount);
+    //pdu_setupEPWMActiveHigh(pwm_base,dbcount);
+    //pdu_setupEPWMActiveLow(pwm_base,dbcount);
+
 }
 
 
@@ -125,40 +129,17 @@ void pdpu_InitPWM(uint32_t pwm_base)
 
 void pdpu_UpdateCompareReg(VECTOR SVMTransitionTime)
 {
-    /*
-    if (SVMTransitionTime.Axis1 < 0)
-    {
-        SVMTransitionTime.Axis1 = - SVMTransitionTime.Axis1;
-    }
 
-     if (SVMTransitionTime.Axis2 < 0)
-     {
-         SVMTransitionTime.Axis2 = - SVMTransitionTime.Axis2;
-     }
+    // For 50 KHz, multiply with 1000; For 80 KHz, multiply with 624; For 100 KHz, multiply with 500
 
-     if (SVMTransitionTime.Axis3 < 0)
-     {
-         SVMTransitionTime.Axis3 = - SVMTransitionTime.Axis3;
-     }*/
+    EPwm12Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis1 * 624;
+    EPwm11Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis1 * 624;
 
-    EPwm12Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis1 * 500;
-    EPwm11Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis1 * 500;
+    EPwm10Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis2 * 624;
+    EPwm9Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis2 * 624;
 
-    //EPwm12Regs.CMPA.bit.CMPA = 50;
-    //EPwm11Regs.CMPA.bit.CMPA = 50;
-
-    EPwm10Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis2 * 500;
-    EPwm9Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis2 * 500;
-
-    //EPwm10Regs.CMPA.bit.CMPA = 50;
-    //EPwm9Regs.CMPA.bit.CMPA = 50;
-
-    EPwm8Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis3 * 500;
-    EPwm7Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis3 * 500;
-
-    //EPwm8Regs.CMPA.bit.CMPA = 50;
-    //EPwm7Regs.CMPA.bit.CMPA = 50;
-
+    EPwm8Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis3 * 624;
+    EPwm7Regs.CMPA.bit.CMPA = SVMTransitionTime.Axis3 * 624;
 
 }
 
@@ -593,6 +574,9 @@ void pdpu_Enable_Phase_A_UpperChannel_B()
     EPwm12Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase A Channel B Enable  - TP25
     EPwm11Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase A Channel B Disable - TP31
 
+    EPwm12Regs.DBCTL.bit.OUT_MODE = 3;
+    EPwm11Regs.DBCTL.bit.OUT_MODE = 2;
+
     EPwm12Regs.AQCTLA.bit.CAU = AQ_SET;      // Set PWM12A on event A, up count
     EPwm12Regs.AQCTLA.bit.CAD = AQ_CLEAR;    // Clear   PWM12A on event A, down count
 
@@ -617,6 +601,9 @@ void pdpu_Enable_Phase_A_LowerChannel_B()
     EALLOW;
     EPwm12Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase A Channel B Disable  - TP25
     EPwm11Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase A Channel B Enable   - TP31
+
+    EPwm12Regs.DBCTL.bit.OUT_MODE = 2;
+    EPwm11Regs.DBCTL.bit.OUT_MODE = 3;
 
     EPwm12Regs.AQCTLA.bit.CAU = AQ_CLEAR;  // Clear PWM12A on event A, up count
     EPwm12Regs.AQCTLA.bit.CAD = AQ_SET;    // Set   PWM12A on event A, down count
@@ -646,6 +633,9 @@ void pdpu_Enable_Phase_B_UpperChannel_B()
     EPwm10Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase B Channel B Enable  - TP26
     EPwm9Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase B Channel B Disable - TP32
 
+    EPwm10Regs.DBCTL.bit.OUT_MODE = 3;
+    EPwm9Regs.DBCTL.bit.OUT_MODE = 2;
+
     EPwm10Regs.AQCTLA.bit.CAU = AQ_SET;      // Set PWM10A on event A, up count
     EPwm10Regs.AQCTLA.bit.CAD = AQ_CLEAR;    // Clear   PWM10A on event A, down count
 
@@ -671,6 +661,9 @@ void pdpu_Enable_Phase_B_LowerChannel_B()
     EALLOW;
     EPwm10Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase B Channel B Disable  - TP26
     EPwm9Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase B Channel B Enable   - TP32
+
+    EPwm10Regs.DBCTL.bit.OUT_MODE = 2;
+    EPwm9Regs.DBCTL.bit.OUT_MODE = 3;
 
     EPwm10Regs.AQCTLA.bit.CAU = AQ_CLEAR;  // Clear PWM10A on event A, up count
     EPwm10Regs.AQCTLA.bit.CAD = AQ_SET;    // Set   PWM10A on event A, down count
@@ -702,6 +695,9 @@ void pdpu_Enable_Phase_C_UpperChannel_B()
     EPwm8Regs.AQCSFRC.bit.CSFB = 0;  // Upper Phase C Channel B Enable  - TP27
     EPwm7Regs.AQCSFRC.bit.CSFB = 1;  // Lower Phase C Channel B Disable - TP33
 
+    EPwm8Regs.DBCTL.bit.OUT_MODE = 3;
+    EPwm7Regs.DBCTL.bit.OUT_MODE = 2;
+
     EPwm8Regs.AQCTLA.bit.CAU = AQ_SET;      // Set PWM8A on event A, up count
     EPwm8Regs.AQCTLA.bit.CAD = AQ_CLEAR;    // Clear PWM8A on event A, down count
 
@@ -726,6 +722,9 @@ void pdpu_Enable_Phase_C_LowerChannel_B()
     EALLOW;
     EPwm8Regs.AQCSFRC.bit.CSFB = 1;  // Upper Phase C Channel B Disable  - TP27
     EPwm7Regs.AQCSFRC.bit.CSFB = 0;  // Lower Phase C Channel B Enable   - TP33
+
+    EPwm8Regs.DBCTL.bit.OUT_MODE = 2;
+    EPwm7Regs.DBCTL.bit.OUT_MODE = 3;
 
     EPwm8Regs.AQCTLA.bit.CAU = AQ_CLEAR;  // Clear PWM8A on event A, up count
     EPwm8Regs.AQCTLA.bit.CAD = AQ_SET;    // Set   PWM8A on event A, down count
@@ -764,6 +763,193 @@ void pdpu_Disable_All_Phases()
 
 }
 
+/*****************************************************************************************************
+* @brief This module will configure dead band for the Active High ComplementaryPWM outputs
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdu_setupEPWMActiveHighComplementary(uint32_t pwm_base, short dbcount)
+{
+
+    //
+    // Use EPWMA as the input for both RED and FED
+    //
+    EPWM_setRisingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+    EPWM_setFallingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+
+    //
+    // Set the RED and FED values
+    //
+    EPWM_setFallingEdgeDelayCount(pwm_base, dbcount);
+    EPWM_setRisingEdgeDelayCount(pwm_base, dbcount);
+
+    //
+    // Invert only the Falling Edge delayed output (AHC)
+    //
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_RED, EPWM_DB_POLARITY_ACTIVE_HIGH);
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_FED, EPWM_DB_POLARITY_ACTIVE_LOW);
+
+    //
+    // Use the delayed signals instead of the original signals
+    //
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_RED, true);
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_FED, true);
+
+    //
+    // DO NOT Switch Output A with Output B
+    //
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_A, false);
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_B, false);
+
+}
+
+
+/*****************************************************************************************************
+* @brief This module will configure dead band for the Active Low outputs
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+
+void pdu_setupEPWMActiveLow(uint32_t pwm_base, short dbcount)
+{
+    //
+    // Use EPWMA as the input for both RED and FED
+    //
+    EPWM_setRisingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+    EPWM_setFallingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+
+    //
+    // Set the RED and FED values
+    //
+    EPWM_setFallingEdgeDelayCount(pwm_base, dbcount);
+    EPWM_setRisingEdgeDelayCount(pwm_base, dbcount);
+
+    //
+    // INVERT the delayed outputs (AL)
+    //
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_RED, EPWM_DB_POLARITY_ACTIVE_LOW);
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_FED, EPWM_DB_POLARITY_ACTIVE_LOW);
+
+    //
+    // Use the delayed signals instead of the original signals
+    //
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_RED, true);
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_FED, true);
+
+    //
+    // DO NOT Switch Output A with Output B
+    //
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_A, false);
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_B, false);
+
+}
+
+/*****************************************************************************************************
+* @brief This module will configure dead band for the Active Low Complementary outputs
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+
+void pdu_setupEPWMActiveLowComplementary(uint32_t pwm_base, short dbcount)
+{
+    //
+    // Use EPWMA as the input for both RED and FED
+    //
+    EPWM_setRisingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+    EPWM_setFallingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+
+    //
+    // Set the RED and FED values
+    //
+    EPWM_setFallingEdgeDelayCount(pwm_base, dbcount);
+    EPWM_setRisingEdgeDelayCount(pwm_base, dbcount);
+
+    //
+    // Invert only the Rising Edge delayed output (ALC)
+    //
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_RED, EPWM_DB_POLARITY_ACTIVE_LOW);
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_FED, EPWM_DB_POLARITY_ACTIVE_HIGH);
+
+    //
+    // Use the delayed signals instead of the original signals
+    //
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_RED, true);
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_FED, true);
+
+    //
+    // DO NOT Switch Output A with Output B
+    //
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_A, false);
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_B, false);
+
+}
+
+
+/*****************************************************************************************************
+* @brief This module will configure for swapping the PWM A output with PWM B
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdu_setupEPWMOutputSwap(uint32_t pwm_base)
+{
+
+    //
+    // Disable RED
+    //
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_RED, false);
+
+    //
+    // Disable FED
+    //
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_FED, false);
+
+    //
+    // Switch Output A with Output B
+    //
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_A, true);
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_B, true);
+
+}
+
+
+/*****************************************************************************************************
+* @brief This module will configure dead band for the Active High outputs
+* EPWMxA and EPWMxB — Complementary
+******************************************************************************************************/
+
+void pdu_setupEPWMActiveHigh(uint32_t pwm_base, short dbcount)
+{
+    //
+    // Use EPWMA as the input for both RED and FED
+    //
+    EPWM_setRisingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+    EPWM_setFallingEdgeDeadBandDelayInput(pwm_base, EPWM_DB_INPUT_EPWMA);
+
+    //
+    // Set the RED and FED values
+    //
+    EPWM_setFallingEdgeDelayCount(pwm_base, dbcount);
+    EPWM_setRisingEdgeDelayCount(pwm_base, dbcount);
+
+    //
+    // Do not invert the delayed outputs (AH)
+    //
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_RED, EPWM_DB_POLARITY_ACTIVE_HIGH);
+    EPWM_setDeadBandDelayPolarity(pwm_base, EPWM_DB_FED, EPWM_DB_POLARITY_ACTIVE_HIGH);
+
+    //
+    // Use the delayed signals instead of the original signals
+    //
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_RED, true);
+    EPWM_setDeadBandDelayMode(pwm_base, EPWM_DB_FED, true);
+
+    //
+    // DO NOT Switch Output A with Output B
+    //
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_A, false);
+    EPWM_setDeadBandOutputSwapMode(pwm_base, EPWM_DB_OUTPUT_B, false);
+
+}
 
 
 

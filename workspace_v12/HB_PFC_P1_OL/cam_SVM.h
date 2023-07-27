@@ -41,9 +41,12 @@ extern "C" {
 
 
 // For 50 KHz
-#define TBASE             0.00002
+//#define TBASE             0.00002
 
-//For 100 Khz
+// For 80 KHz
+#define TBASE             0.0000125
+
+//For 100 KHz
 //#define TBASE           0.00001
 
 //
