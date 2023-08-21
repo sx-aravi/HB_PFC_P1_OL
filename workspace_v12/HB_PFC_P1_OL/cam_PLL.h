@@ -39,6 +39,7 @@ extern VECTOR VoltageCap3Phase;
 extern VECTOR VoltageCapRXZ;
 extern VECTOR VoltageCapDQZ;
 extern VECTOR GridVelocityVectDQZ;
+extern VECTOR GridVoltageDQZ;
 
 void phaselock(void);
 VECTOR NormalizeVoltageCapDQZ(VECTOR VectDQZ, float VectDQZ_magnitude);

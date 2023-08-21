@@ -33,19 +33,21 @@ typedef struct
 #define ONEBYSQRT3      (0.5773502691896258)
 
 
-
-extern VECTOR VectDQZtoRXZ(VECTOR VectDQZ, float theta);
-extern VECTOR VectRXZtoABC(VECTOR VectRXZ);
 extern VECTOR VectRXZtoABCSin(VECTOR VectRXZ);
 extern VECTOR RotateRXZby30Degree(VECTOR VectorRXZ);
 
+
+extern VECTOR VectDQZtoRXZ(VECTOR VectDQZ, float theta);
+extern VECTOR VectRXZtoABC(VECTOR VectRXZ);
 extern VECTOR VectABCtoRXZ(VECTOR VectABC);
 extern VECTOR VectRXZtoDQZ(VECTOR VectRXZ, float theta);
 
 extern float ComputeVectorMagnitude(VECTOR VectDQZ);
 extern VECTOR VectorCrossProduct(VECTOR vect1, VECTOR vect2);
 
-
+extern VECTOR VectorGainCompute(VECTOR vect, float gain);
+extern VECTOR VectorSum(VECTOR vect1, VECTOR vect2);
+extern VECTOR VectorSaturate(VECTOR vect, float SatHi, float SatLo);
 
 
 #endif /* CAM_VECTORCONVERSIONS_H_ */

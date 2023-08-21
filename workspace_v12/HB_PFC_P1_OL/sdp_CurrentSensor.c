@@ -23,14 +23,23 @@
 uint16_t PHASE_CURRENT_FAULT_THRESHOLD_COUNT = 2183;
 float PHASE_CURRENT_FAULT_THRESHOLD_LIMIT = 1.74;
 
+extern VECTOR PercentCurrentValue;
+
 float sdp_BiasAndScaleCurrentSensorValue(uint16_t value)
 {
     float scaled_val;
 
-    // Need to be implmenetd based on the requried bias and scaling.
+   // Convert counts in to measured current value from 0-250A range;
+    scaled_val = value * 8.19;
 
-    scaled_val = value;
-    return scaled_val;
+
+   // Normalize to 0-1; norm_val = ( val – MIN) / (MAX – MIN)
+   // minimum current is 0, and maximum current is 250A.
+
+   //PercentCurrentValue.Axis1 = scaled_val/250;
+    PercentCurrentValue.Axis1 = scaled_val * 0.004;
+
+   return scaled_val;
 }
 
 
@@ -39,11 +48,12 @@ float sdp_ConvertCurrentToPU(uint16_t value)
     float pu_val;
 
     /* Phase Current sensing */
-    /* 4095 counts for 3V.
-     * 300 A ==> 3 V i.e. 0.01V --> 1A or 13.65 counts to 1A
+    /* 4095 counts for 3.3V.
+     * 250 A ==> 3.3 V i.e. 0.0132V --> 1A or 16.38 counts to 1A
      */
 
-    pu_val = (value / 4095) * 0.01;
+    //pu_val = (value*16.38 / 4095) * 0.0132;
+    pu_val = value * 16.38 * 2.442002442002442e-4 * 0.0132;
     return pu_val;
 }
 

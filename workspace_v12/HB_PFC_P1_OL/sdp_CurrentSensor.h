@@ -22,12 +22,13 @@
 #include "F28x_Project.h"
 #include "driverlib.h"
 #include "device.h"
+#include <cam_VectorConversions.h>
 
 
 extern uint16_t PHASE_CURRENT_FAULT_THRESHOLD_COUNT;
 extern float PHASE_CURRENT_FAULT_THRESHOLD_LIMIT;
 
-
+extern VECTOR PercentCurrentValue;
 
 float sdp_BiasAndScaleCurrentSensorValue(uint16_t value);
 float sdp_ConvertCurrentToPU(uint16_t value);

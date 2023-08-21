@@ -118,7 +118,7 @@ void ddi_InitializeADCs()
     //Read DCLINK Current value (HViSns)                    --> ADC_CH_ADCINA4
     //Read Temperature Max value (Tmax)                     --> ADC_CH_ADCINA5
 
-    //ddi_InitializeADCA(ADC_SOC_NUMBER0, ADC_CH_ADCIN0);
+    ddi_InitializeADCA(ADC_SOC_NUMBER0, ADC_CH_ADCIN0);
     //ddi_InitializeADCA(ADC_SOC_NUMBER1, ADC_CH_ADCIN1);
     //ddi_InitializeADCA(ADC_SOC_NUMBER2, ADC_CH_ADCIN2);
     //ddi_InitializeADCA(ADC_SOC_NUMBER3, ADC_CH_ADCIN3);

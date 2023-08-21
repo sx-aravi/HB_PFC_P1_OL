@@ -33,9 +33,17 @@ VECTOR NormalizedVoltageCapDQZ;
 VECTOR PLLCrossVect;
 float VelocityDQZ;
 
-//----------------------------------------------------------------------
-//  phaselock
-//----------------------------------------------------------------------
+/*******************************************************************************
+**
+* @brief Function to peconvert RXZ vector to DQZ reference
+* @parameter VectRXZ          - space vector in RXZ to be converted
+* @return VectDQZ             - Space Vector in DQZ
+*
+* Source is mapped to MATLAB/SIMULINK Model
+* To be documented*
+**
+*******************************************************************************/
+
 void phaselock()
 {
     float VoltageCapDQZ_Magnitude, VelocityOutput;

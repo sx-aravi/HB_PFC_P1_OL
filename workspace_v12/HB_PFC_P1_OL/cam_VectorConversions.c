@@ -217,5 +217,65 @@ VECTOR VectorCrossProduct(VECTOR vect1, VECTOR vect2)
     return CrossVect;
 }
 
+/*******************************************************************************
+**
+* @brief Utility function to compute vector gain
+* @parameter vector, gain
+* @return Cross vector
+**
+*******************************************************************************/
+
+VECTOR VectorGainCompute(VECTOR vect, float gain)
+{
+    VECTOR VectOut;
+    VectOut.Axis1 = vect.Axis1 * gain;
+    VectOut.Axis2 = vect.Axis2 * gain;
+    VectOut.Axis3 = vect.Axis3 * gain;
+
+    return VectOut;
+}
+
+/*******************************************************************************
+**
+* @brief Utility function to compute vector sum
+* @parameter vector1, vector2
+* @return Cross vector
+**
+*******************************************************************************/
+
+VECTOR VectorSum(VECTOR vect1, VECTOR vect2)
+{
+    VECTOR VectSum;
+    VectSum.Axis1 = vect1.Axis1 + vect2.Axis1;
+    VectSum.Axis2 = vect1.Axis2 + vect2.Axis2;
+    VectSum.Axis3 = vect1.Axis3 + vect2.Axis3;
+
+    return VectSum;
+}
+
+/*******************************************************************************
+**
+* @brief Utility function to compute vector saturation
+* @parameter vector, SatHi, SatLo
+* @return Cross vector
+**
+*******************************************************************************/
+
+VECTOR VectorSaturate(VECTOR vect, float SatHi, float SatLo)
+{
+    VECTOR VectSat;
+
+    VectSat.Axis1 = (vect.Axis1 >= SatHi) ? SatHi : vect.Axis1;
+    VectSat.Axis2 = (vect.Axis2 >= SatHi) ? SatHi : vect.Axis2;
+    VectSat.Axis3 = (vect.Axis3 >= SatHi) ? SatHi : vect.Axis3;
+
+    VectSat.Axis1 = (vect.Axis1 <= SatLo) ? SatLo : vect.Axis1;
+    VectSat.Axis2 = (vect.Axis2 <= SatLo) ? SatLo : vect.Axis2;
+    VectSat.Axis3 = (vect.Axis3 <= SatLo) ? SatLo : vect.Axis3;
+
+    return VectSat;
+}
+
+
 
 //End of file
